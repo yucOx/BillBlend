@@ -18,12 +18,9 @@ class MainActivity : AppCompatActivity() {
         mAdView.loadAd(adRequest)
         mAdView.adListener = object: AdListener() {
             override fun onAdClicked() {
-                // Code to be executed when the user clicks on an ad.
             }
 
             override fun onAdClosed() {
-                // Code to be executed when the user is about to return
-                // to the app after tapping on an ad.
             }
 
             override fun onAdFailedToLoad(adError : LoadAdError) {
@@ -31,8 +28,6 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onAdImpression() {
-                // Code to be executed when an impression is recorded
-                // for an ad.
             }
 
             override fun onAdLoaded() {
@@ -40,8 +35,6 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onAdOpened() {
-                // Code to be executed when an ad opens an overlay that
-                // covers the screen.
             }
         }
         var text = findViewById<TextView>(R.id.tellMeHowMuch)
