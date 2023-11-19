@@ -1,25 +1,3 @@
-package com.yucox.splitwise.adapter
-
-
-import android.app.Activity
-import android.content.Context
-import android.content.Intent
-import android.os.Handler
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
-import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
-import com.R.R.model.Group
-import com.R.R.model.UserInfo
-import com.yucox.splitwise.R
-import com.yucox.splitwise.activity.ProfileDetailActivity
-import de.hdodenhof.circleimageview.CircleImageView
 
 class ListUserAdapter(private val context: Context, private val userList: ArrayList<UserInfo>, private val groupuserList : ArrayList<Group>) : RecyclerView.Adapter<ListUserAdapter.ViewHolder>() {
     var makemeUp = 0
