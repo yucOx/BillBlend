@@ -1,38 +1,3 @@
-package com.yucox.splitwise.activity
-
-
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.view.View
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
-import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdView
-import com.google.android.gms.ads.MobileAds
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
-import com.google.firebase.database.ktx.database
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
-import com.R.R.model.Group
-import com.R.R.model.UserInfo
-import com.R.R.model.WhoHowmuch
-import com.yucox.splitwise.R
-import com.yucox.splitwise.adapter.ListBillsAdapter
-import com.yucox.splitwise.adapter.ListUserAdapter
-import com.yucox.splitwise.fragment.AddBill
 
 class DetailsOfGroupActivity : AppCompatActivity() {
     private lateinit var auth : FirebaseAuth
