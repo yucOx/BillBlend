@@ -85,7 +85,6 @@ class AddBill : Fragment() {
                     var selectedImageUri = data?.data
                     selectedImageView.setImageURI(selectedImageUri)
                     getSelectedImage = selectedImageUri.toString()
-                    // Seçilen resmin Uri'si burada kullanılabilir
                 } else {
                     Toast.makeText(context, "Hiçbir resim seçilmedi", Toast.LENGTH_SHORT).show()
                 }
