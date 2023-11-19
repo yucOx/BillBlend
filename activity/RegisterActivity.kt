@@ -62,7 +62,7 @@ class RegisterActivity : AppCompatActivity() {
             var getMail = mail.text.toString()
             var getPas = pass.text.toString()
 
-            //Başta veya sonda boşluk
+    
             if (getName.startsWith(" ")) {
                 getName = name.text.toString().replace(" ", "")
             }
