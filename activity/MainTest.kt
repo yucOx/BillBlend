@@ -1,17 +1,3 @@
-package com.yucox.splitwise.activity
-
-
-
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.os.Handler
-import android.widget.ImageView
-import com.bumptech.glide.Glide
-import com.google.firebase.database.ktx.database
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.FirebaseStorage
-import com.yucox.splitwise.R
-import kotlin.random.Random
 
 class MainTest : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
