@@ -22,7 +22,6 @@ class AnswerFriendshipRequest : AppCompatActivity() {
                     counter = 0
                     for (snap in snapshot.children) {
                         var a = snap.getValue(SendFriendRequest::class.java)
-                        println(a?.whoGetFriendRequest)
                         if (auth.currentUser?.email == a?.whoGetFriendRequest) {
                             if (a?.status == 0) {
                                 counter++
@@ -89,7 +88,6 @@ class AnswerFriendshipRequest : AppCompatActivity() {
                         var getTempValue = snap.getValue(UserInfo::class.java)
                         for(user in tempUserInfo){
                             if(getTempValue?.mail == user.mail){
-                                println("veriler eşleşti")
                                 getRealUserInfo.add(UserInfo(getTempValue?.name,getTempValue?.surname,getTempValue?.mail,getTempValue?.pfpUri))
                             }
                         }

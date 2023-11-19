@@ -288,7 +288,6 @@ class CreateGroup : AppCompatActivity() {
             var counter = 0
 
             for(user in userList){
-                //println(user)
                 counter++
             }
 

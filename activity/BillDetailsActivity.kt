@@ -9,7 +9,6 @@ class BillDetailsActivity : AppCompatActivity() {
         var billName = intent.getStringExtra("billName")
         var billImg = intent.getStringExtra("billImgUri")
         groupName = intent.getStringExtra("groupName").toString()
-        println(billName)
 
         var photoOftheBill = findViewById<ImageView>(R.id.photoOfBill)
         if(billImg?.isBlank() == false){
@@ -30,8 +29,6 @@ class BillDetailsActivity : AppCompatActivity() {
                             for(rSnap in snap.children) {
                                 var temp = rSnap.getValue(WhoHowmuch::class.java)
                                 if(temp?.billname == billName) {
-                                    println(temp?.whoWillPay)
-                                    println(temp?.billname)
                                     getBillDetails.add(temp!!)
                                 }
                             }
@@ -68,7 +65,6 @@ class BillDetailsActivity : AppCompatActivity() {
                                         var temp = rsnap.getValue(WhoHowmuch::class.java)
                                         if (temp?.billname == getBillDetails[0].billname) {
                                             var uniqueId = snap.key.toString()
-                                            println(uniqueId)
                                             dataRef.child(uniqueId).removeValue()
                                                 .addOnSuccessListener {
                                                     Toast.makeText(this@BillDetailsActivity, "Fatura başarıyla silindi!",Toast.LENGTH_SHORT).show()

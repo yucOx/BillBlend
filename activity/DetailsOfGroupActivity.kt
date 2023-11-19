@@ -176,8 +176,6 @@ class DetailsOfGroupActivity : AppCompatActivity() {
                                 if(temp?.groupName == groupName) {
                                     billNamesHash.add(temp?.billname.toString())
                                     billUsers.add(temp?.whoBought.toString())
-                                    println(temp?.billname)
-                                    println(billUsers)
                                     for(a in billNamesHash){
                                         if(a in arraylistbillNames){
 
@@ -285,14 +283,12 @@ class DetailsOfGroupActivity : AppCompatActivity() {
                             for(bill in arraylistbillNames) {
                                 if (temp?.billname == bill) {
                                     var uniqueId = snap.key.toString()
-                                    println(uniqueId)
                                     dataRef.child(uniqueId).removeValue().addOnSuccessListener {
                                     }
                                 }
                                 for(a in billUsers) {
                                     var storageRef = Firebase.storage.getReference("$groupName").child(bill).child(a)
                                     storageRef.delete()
-                                    println("silinecek $groupName child $bill child $a")
                                 }
                             }
                         }
