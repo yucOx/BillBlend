@@ -39,7 +39,6 @@ class RegisterActivity : AppCompatActivity() {
                 val selectedImageUri: Uri? = data?.data
                 showImage.setImageURI(selectedImageUri)
                 userPfp = selectedImageUri.toString()
-                // Seçilen resmin Uri'si burada kullanılabilir
             } else {
                 userPfp = "0"
             Toast.makeText(this, "Hiçbir resim seçilmedi", Toast.LENGTH_SHORT).show()
