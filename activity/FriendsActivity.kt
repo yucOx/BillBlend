@@ -1,23 +1,3 @@
-package com.yucox.splitwise.activity
-
-
-
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.view.View
-import android.widget.TextView
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.ValueEventListener
-import com.google.firebase.database.ktx.database
-import com.google.firebase.ktx.Firebase
-import com.R.R.model.SendFriendRequest
-import com.R.R.model.UserInfo
-import com.yucox.splitwise.R
-import com.yucox.splitwise.adapter.FriendAdapter
 
 class FriendsActivity : AppCompatActivity() {
     private lateinit var adapter : FriendAdapter
