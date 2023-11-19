@@ -5,7 +5,6 @@ class SettingsFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
 
         val view = inflater.inflate(R.layout.settings_fragment, container, false)
         var nameText = view.findViewById<TextView>(R.id.nameTextsettingsfragment)
@@ -39,7 +38,6 @@ class SettingsFragment : Fragment() {
                             progressBar.visibility = View.GONE
                         }
                     }
-                    // Seçilen resmin Uri'si burada kullanılabilir
                 } else {
                     Toast.makeText(context, "Hiçbir resim seçilmedi", Toast.LENGTH_SHORT).show()
                 }
