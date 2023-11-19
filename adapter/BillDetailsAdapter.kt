@@ -1,28 +1,3 @@
-package com.yucox.splitwise.adapter
-
-
-import android.content.Context
-import android.content.Intent
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
-import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
-import com.google.firebase.database.ktx.database
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.FirebaseStorage
-import com.R.R.model.UserInfo
-import com.R.R.model.WhoHowmuch
-import com.yucox.splitwise.R
-import com.yucox.splitwise.activity.ProfileDetailActivity
 
 class BillDetailsAdapter(private val context: Context, private var whoMustPay: ArrayList<WhoHowmuch>) :
     RecyclerView.Adapter<BillDetailsAdapter.ViewHolder>() {
