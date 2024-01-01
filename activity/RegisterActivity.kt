@@ -1,24 +1,47 @@
+package com.yucox.splitwise.activity
+
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.view.View
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.ktx.database
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.FirebaseStorage
+import com.R.R.model.UserInfo
+import com.yucox.splitwise.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class RegisterActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.register_activity)
-
         var progressBar = findViewById<ProgressBar>(R.id.progressBar)
         progressBar.visibility = View.INVISIBLE
-
         var database = Firebase.database
         var ref = database.getReference("UsersData")
-        var auth = FirebaseAuth.getInstance()
-        var refCheck = database.getReference("MailCheck")
-        val sharedPref = this.getPreferences(MODE_PRIVATE)
         var firebaseStorage = FirebaseStorage.getInstance()
-        val editor = sharedPref.edit()
 
-
-        var loginBtn = findViewById<TextView>(R.id.registerToLogin)
+        var loginBtn = findViewById<ImageView>(R.id.registerToLogin)
         loginBtn.setOnClickListener {
-            val intent = Intent(this@RegisterActivity,LoginActivity::class.java)
+            val intent = Intent(this@RegisterActivity, LoginActivity::class.java)
             startActivity(intent)
             finish()
         }
@@ -29,39 +52,33 @@ class RegisterActivity : AppCompatActivity() {
         var pass = findViewById<EditText>(R.id.registerPass)
         var registerBtn = findViewById<ImageView>(R.id.registerButton)
 
-
-        var userPfp : String? = ""
-        var selectImageBtn = findViewById<Button>(R.id.insertImageBtn)
+        var userPfp: String? = ""
         var showImage = findViewById<ImageView>(R.id.insertImage)
-        var galleryLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                val data: Intent? = result.data
-                val selectedImageUri: Uri? = data?.data
-                showImage.setImageURI(selectedImageUri)
-                userPfp = selectedImageUri.toString()
-            } else {
-                userPfp = "0"
-            Toast.makeText(this, "Hiçbir resim seçilmedi", Toast.LENGTH_SHORT).show()
+        var galleryLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    val data: Intent? = result.data
+                    val selectedImageUri: Uri? = data?.data
+                    showImage.setImageURI(selectedImageUri)
+                    userPfp = selectedImageUri.toString()
+                } else {
+                    Toast.makeText(this, "Hiçbir resim seçilmedi", Toast.LENGTH_SHORT).show()
+                }
             }
-        }
-        selectImageBtn.setOnClickListener {
+        var selectImage = findViewById<ConstraintLayout>(R.id.tapForSelect)
+        selectImage.setOnClickListener {
             val intent = Intent(Intent.ACTION_PICK)
             intent.type = "image/*"
             galleryLauncher.launch(intent)
         }
 
-
-
         registerBtn.setOnClickListener {
             progressBar.visibility = View.VISIBLE
-
-
             var getName = name.text.toString()
             var getSurname = surname.text.toString()
             var getMail = mail.text.toString()
             var getPas = pass.text.toString()
 
-    
             if (getName.startsWith(" ")) {
                 getName = name.text.toString().replace(" ", "")
             }
@@ -71,8 +88,6 @@ class RegisterActivity : AppCompatActivity() {
             if (getMail.startsWith(" ") || getMail.endsWith("")) {
                 getMail = mail.text.toString().replace(" ", "")
             }
-
-            var ismailMatched = 0
             if (getName.isBlank() || getSurname.isBlank() || getMail.isBlank() || getPas.isBlank()) {
                 Toast.makeText(
                     this@RegisterActivity,
@@ -80,152 +95,50 @@ class RegisterActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
                 progressBar.visibility = View.INVISIBLE
-            } else if (!getMail.endsWith("gmail.com") && !getMail.endsWith("hotmail.com")) {
-                Toast.makeText(
-                    this@RegisterActivity,
-                    "Mail adresinizi doğru formatta giriniz.               Örneğin: yucox.29@gmail.com",
-                    Toast.LENGTH_LONG
-                ).show()
-                progressBar.visibility = View.INVISIBLE
-            } else {
-                var userInfo = UserInfo(getName, getSurname, getMail,"")
-
-                var checkDataMail: String? = null
-                var handler = Handler()
-                var runnable = object : Runnable{
-                    override fun run() {
-                        progressBar.visibility = View.INVISIBLE
-                        Toast.makeText(
-                            this@RegisterActivity,
-                            "Başarıyla kaydedildi.",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
-                var runnable2 = object : Runnable{
-                    override fun run() {
-                        progressBar.visibility = View.INVISIBLE
-                        Toast.makeText(
-                            this@RegisterActivity,
-                            "Mail adresi önceden kayıt edilmiş.",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
-                ref.addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        if (snapshot.exists()) {
-                            for (snap in snapshot.children) {
-                                var a = snap.child("mail")
-                                    .getValue<String>(String::class.java)
-                                if (getMail == a) {
-                                    checkDataMail = a
-                                }
-                            }
-                        }
-                        if (checkDataMail == getMail) {
-                            handler.postDelayed(runnable2,1500)
-                            println("Kayıtlı")
-                        } else {
-                            println(getMail)
-                            println(getPas)
-                            if(getPas.length <= 6) {
-                                Toast.makeText(this@RegisterActivity,"Şifre en az 7 haneli olmalıdır",Toast.LENGTH_LONG).show()
-                                progressBar.visibility = View.INVISIBLE
-                                return
-                            }
-                            var auth1 = FirebaseAuth.getInstance()
-                            refCheck.push().setValue(getMail)
-                            var storageRef = firebaseStorage.getReference(userInfo.mail.toString())
-                            if(userPfp != "0"){
-                                storageRef.putFile(Uri.parse(userPfp))
-                            }
-                            ref.push().setValue(userInfo)
-                                .addOnSuccessListener {
-                                    handler.postDelayed(runnable,2500)
-                                }
-                            auth1.createUserWithEmailAndPassword(getMail,getPas).addOnSuccessListener {
-                                val intent = Intent(this@RegisterActivity,MainActivity::class.java)
-                                startActivity(intent)
-                                finish()
-                            }
-                        }
-                    }
-
-                    override fun onCancelled(error: DatabaseError) {
-                    }
-                })
+                return@setOnClickListener
             }
 
-            /* else {
-                var checkMe = 0
-                var handler = Handler()
-
-                fun callmeBack() {
-                    var userInfo = UserInfo(getName, getSurname, getMail)
-                    if (checkMe == 0) {
-                        refCheck.push().setValue(getMail)
-                        ref.push().setValue(userInfo)
-                            .addOnSuccessListener {
-                                Toast.makeText(
-                                    this@RegisterActivity,
-                                    "Başarıyla kaydedildi.",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                println("kaydedildi")
-                                Thread.sleep(2000)
-                            }.addOnFailureListener {
-                                Toast.makeText(
-                                    this@RegisterActivity,
-                                    "Veri kaydedilemedi.",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                progressBar.visibility = View.GONE
-                            }
-                    }
-                }
-                var checkDataMail : String? = null
-                var runnable2 = Runnable{
-                    kotlin.run {
-                        println("wait a second")
-                        progressBar.visibility = View.GONE
-                    }
-                }
-                var runnable = object : Runnable {
-                    override fun run() {
-                        println("workin")
-                        ref.addListenerForSingleValueEvent(object : ValueEventListener {
-                            override fun onDataChange(snapshot: DataSnapshot) {
-                                if (snapshot.exists()) {
-                                    for (snap in snapshot.children) {
-                                        var a = snap.child("mail")
-                                            .getValue<String>(String::class.java)
-                                        if (getMail == a) {
-                                            checkDataMail = a
+            var userInfo = UserInfo(getName, getSurname, getMail, "")
+            var auth1 = FirebaseAuth.getInstance()
+            var storageRef = firebaseStorage.getReference(userInfo.mail.toString())
+            auth1.createUserWithEmailAndPassword(getMail, getPas)
+                .addOnSuccessListener {
+                    ref.push().setValue(userInfo)
+                        .addOnSuccessListener {
+                            if (userPfp.isNullOrEmpty() == false) {
+                                storageRef.putFile(Uri.parse(userPfp))
+                                    .addOnSuccessListener {
+                                        CoroutineScope(Dispatchers.Main).launch {
+                                            val intent =
+                                                Intent(this@RegisterActivity, MainActivity::class.java)
+                                            startActivity(intent)
+                                            finish()
+                                            progressBar.visibility = View.INVISIBLE
                                         }
                                     }
-                                }
-                                if(checkDataMail == getMail){
-                                    Toast.makeText(this@RegisterActivity,"Bu mail daha önceden kayıt edilmiş.",Toast.LENGTH_LONG).show()
-                                    handler.postDelayed(runnable2,3000)
-                                    progressBar.visibility = View.VISIBLE
-                                }else{
-                                    handler.postDelayed(runnable2,3000)
-                                    callmeBack()
-                                    println("bekle")
+                            } else{
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    val intent =
+                                        Intent(this@RegisterActivity, MainActivity::class.java)
+                                    startActivity(intent)
+                                    finish()
+                                    progressBar.visibility = View.INVISIBLE
                                 }
                             }
-
-                            override fun onCancelled(error: DatabaseError) {
-                                TODO("Not yet implemented")
-                            }
-                        })
+                        }
+                }
+                .addOnFailureListener {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        Toast.makeText(this@RegisterActivity,"Bu hesap zaten kayıtlı veya kaydedilirken bir hata meydana geldi..",Toast.LENGTH_SHORT).show()
+                        progressBar.visibility = View.INVISIBLE
                     }
                 }
-                handler.post(runnable)
-                println("handler 1 çağrısı")
-            }
-        }*/
+        }
+        var backToLoginBtn = findViewById<ImageView>(R.id.backToLoginPage)
+        backToLoginBtn.setOnClickListener {
+            val intent = Intent(this@RegisterActivity, LoginActivity::class.java)
+            startActivity(intent)
+            finish()
         }
     }
 }

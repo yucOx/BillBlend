@@ -1,7 +1,22 @@
+package com.yucox.splitwise.adapter
 
-class ListGroupAdapter(private val context: Context, private var groupUsers: ArrayList<Group>, private var groupNames : HashSet<String>) :
+
+import android.content.Context
+import android.content.Intent
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.recyclerview.widget.RecyclerView
+import com.R.R.model.Group
+import com.yucox.splitwise.R
+import com.yucox.splitwise.activity.DetailsOfGroupActivity
+import de.hdodenhof.circleimageview.CircleImageView
+
+class ListGroupAdapter(private val context: Context, private var groupUsers: ArrayList<Group>, private var groupNames : HashSet<String>, var whichGroupUserInSnapKeys : MutableList<String>) :
     RecyclerView.Adapter<ListGroupAdapter.ViewHolder>() {
-    lateinit var randomImgShuffled : List<Int>
     var counter = 0
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -15,7 +30,7 @@ class ListGroupAdapter(private val context: Context, private var groupUsers: Arr
         var img6 = view.findViewById<CircleImageView>(R.id.img6)
         var img7 = view.findViewById<CircleImageView>(R.id.img7)
         var img8 = view.findViewById<CircleImageView>(R.id.img8)
-        var selectGroup = view.findViewById<LinearLayout>(R.id.selectGroup)
+        var selectGroup = view.findViewById<ConstraintLayout>(R.id.selectGroup)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -52,6 +67,8 @@ class ListGroupAdapter(private val context: Context, private var groupUsers: Arr
         }
         holder.usersInGroup.text = stringBuff
         holder.groupName.text = arrayListOfGroupNames[position]
+        if(counter == 1)
+            holder.img1.visibility = View.VISIBLE
         if(counter == 2){
             holder.img1.visibility = View.VISIBLE
             holder.img2.visibility = View.VISIBLE
@@ -87,6 +104,7 @@ class ListGroupAdapter(private val context: Context, private var groupUsers: Arr
             val intent = Intent(context, DetailsOfGroupActivity::class.java)
             var groupName = arrayListOfGroupNames[position]
             intent.putExtra("GroupName",groupName)
+            intent.putExtra("snapKeyOfGroup",whichGroupUserInSnapKeys[position])
             context.startActivity(intent)
         }
 

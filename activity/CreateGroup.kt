@@ -1,16 +1,52 @@
+package com.yucox.splitwise.activity
+
+
+
+import android.content.Intent
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.MobileAds
+import com.google.android.material.textfield.TextInputLayout
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.ktx.database
+import com.google.firebase.ktx.Firebase
+import com.R.R.model.GetMails
+import com.R.R.model.SendFriendRequest
+import com.R.R.model.Group
+import com.google.android.gms.ads.AdListener
+import com.google.android.gms.ads.LoadAdError
+import com.yucox.splitwise.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class CreateGroup : AppCompatActivity() {
     private lateinit var database : FirebaseDatabase
-    private lateinit var listener : ValueEventListener
-    private var userList =  mutableListOf<String>()
+    private var selectedUsers =  mutableListOf<String>()
     private lateinit var adapter3 : ArrayAdapter<String>
     private lateinit var adapter4 : ArrayAdapter<String>
     private lateinit var adapter5 : ArrayAdapter<String>
     private lateinit var adapter6 : ArrayAdapter<String>
     private lateinit var adapter7 : ArrayAdapter<String>
     private lateinit var adapter8 : ArrayAdapter<String>
-
-
+    var getNamendSurnameFromData = mutableListOf<String>()
+    var getMails = ArrayList<GetMails>()
+    var allFriendsInfo = ArrayList<com.R.R.model.UserInfo>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,16 +59,47 @@ class CreateGroup : AppCompatActivity() {
         val adRequest = AdRequest.Builder().build()
         mAdView.loadAd(adRequest)
 
+        mAdView.adListener = object: AdListener() {
+            override fun onAdClicked() {
+                // Code to be executed when the user clicks on an ad.
+            }
+
+            override fun onAdClosed() {
+                // Code to be executed when the user is about to return
+                // to the app after tapping on an ad.
+            }
+
+            override fun onAdFailedToLoad(adError : LoadAdError) {
+                println("başarısız")
+            }
+
+            override fun onAdImpression() {
+                // Code to be executed when an impression is recorded
+                // for an ad.
+            }
+
+            override fun onAdLoaded() {
+                println("başarılı")
+            }
+
+            override fun onAdOpened() {
+                // Code to be executed when an ad opens an overlay that
+                // covers the screen.
+            }
+        }
+
+
         var auth = FirebaseAuth.getInstance()
 
         database = Firebase.database
-        var ref = database.getReference("FriendRequest")
-
-        var getMails = ArrayList<GetMails>()
-
+        var usersDataRef = database.getReference("UsersData")
+        var groupRef = database.getReference("Groups")
+        var groupRefKey = groupRef.push().key.toString()
 
         var isThatRepeat = HashSet<String>()
-        ref.addValueEventListener(object : ValueEventListener{
+
+        var ref = database.getReference("FriendRequest")
+        ref.addListenerForSingleValueEvent(object : ValueEventListener{
             override fun onDataChange(snapshot: DataSnapshot) {
                 if(snapshot.exists()){
                     for(snap in snapshot.children){
@@ -54,169 +121,125 @@ class CreateGroup : AppCompatActivity() {
                         }
                     }
                 }
-                ref.addValueEventListener(listener)
+                getInfoFromMail()
             }
 
             override fun onCancelled(error: DatabaseError) {
             }
         })
 
-        var ref2 = database.getReference("UsersData")
 
-        var getNamendSurname = mutableListOf<String>()
 
-        var allUserInfo = ArrayList<com.R.R.model.UserInfo>()
-        var count = 0
+        val autoComplete3 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup3)
+        adapter3 = ArrayAdapter(this@CreateGroup,R.layout.list_item,getNamendSurnameFromData)
 
-        listener = ref2.addValueEventListener(object : ValueEventListener{
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if(snapshot.exists()){
-                    var i = 0
-                    for(snap in snapshot.children){
-                        var temp = snap.getValue(com.R.R.model.UserInfo::class.java)
-                        for(user in getMails){
-                            if(user.userMail == temp?.mail){
-                                getNamendSurname.add(i,"${temp?.name.toString()} ${temp?.surname.toString()}")
-                                allUserInfo.add(com.R.R.model.UserInfo(temp?.name,temp?.surname,temp?.mail,temp?.pfpUri))
-                                count++
-                            }
-                        }
+        autoComplete3.setAdapter(adapter3)
+        autoComplete3.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
+
+            val selectedItem = adapterView.getItemAtPosition(i)
+            for(user in allFriendsInfo){
+                if(selectedItem == "${user.name} ${user.surname}"){
+                    if(selectedItem.toString() in selectedUsers){
+                        Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
+                        autoComplete3.text.clear()
+                    }else{
+                        selectedUsers.add(selectedItem.toString())
+                        autoComplete3.isEnabled = false
                     }
                 }
-                var warningText = findViewById<TextView>(R.id.warningText)
-                warningText.visibility = View.GONE
-                if(count == 0){
-                    warningText.visibility = View.VISIBLE
-                    warningText.text = "Grup oluşturmanız için önce arkadaş eklemelisiniz."
-                }
-
-                userList =  mutableListOf<String>()
-
-                val autoComplete3 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup3)
-
-                adapter3 = ArrayAdapter(this@CreateGroup,R.layout.list_item,getNamendSurname)
-
-                autoComplete3.setAdapter(adapter3)
-                autoComplete3.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
-
-                    val selectedItem = adapterView.getItemAtPosition(i)
-                    for(user in allUserInfo){
-                        if(selectedItem == "${user.name} ${user.surname}"){
-                            if(selectedItem.toString() in userList){
-                                Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
-                                autoComplete3.text.clear()
-                            }else{
-                                userList.add(selectedItem.toString())
-                                autoComplete3.isEnabled = false
-                            }
-                        }
-                    }
-                }
-
-                val autoComplete4 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup4)
-
-                adapter4 = ArrayAdapter(this@CreateGroup,R.layout.list_item,getNamendSurname)
-
-                autoComplete4.setAdapter(adapter4)
-                autoComplete4.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
-
-                    val selectedItem = adapterView.getItemAtPosition(i)
-
-                    for(user in allUserInfo){
-                        if(selectedItem == "${user.name} ${user.surname}"){
-                            if(selectedItem.toString() in userList){
-                                Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
-                                autoComplete4.text.clear()
-                            }else{
-                                userList.add(selectedItem.toString())
-                                autoComplete4.isEnabled = false
-
-                            }
-                        }
-                    }
-                }
-                val autoComplete5 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup5)
-
-                adapter5 = ArrayAdapter(this@CreateGroup,R.layout.list_item,getNamendSurname)
-
-                autoComplete5.setAdapter(adapter5)
-                autoComplete5.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
-
-                    val selectedItem = adapterView.getItemAtPosition(i)
-
-                    for(user in allUserInfo){
-                        if(selectedItem == "${user.name} ${user.surname}"){
-                            if(selectedItem.toString() in userList){
-                                Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
-                                autoComplete5.text.clear()
-                            }else{
-                                userList.add(selectedItem.toString())
-                                autoComplete5.isEnabled = false
-
-                            }
-                        }
-                    }
-                }
-                val autoComplete6 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup6)
-
-
-                adapter6 = ArrayAdapter(this@CreateGroup,R.layout.list_item,getNamendSurname)
-
-                autoComplete6.setAdapter(adapter6)
-                autoComplete6.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
-
-                    val selectedItem = adapterView.getItemAtPosition(i)
-
-                    for(user in allUserInfo){
-                        if(selectedItem == "${user.name} ${user.surname}"){
-                            if(selectedItem.toString() in userList){
-                                Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
-                                autoComplete6.text.clear()
-                            }else{
-                                userList.add(selectedItem.toString())
-                                autoComplete6.isEnabled = false
-                            }
-                        }
-                    }
-                }
-                val autoComplete7 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup7)
-
-                adapter7 = ArrayAdapter(this@CreateGroup,R.layout.list_item,getNamendSurname)
-
-                autoComplete7.setAdapter(adapter7)
-                autoComplete7.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
-
-                    val selectedItem = adapterView.getItemAtPosition(i)
-
-                    for(user in allUserInfo){
-                        if(selectedItem == "${user.name} ${user.surname}"){
-                            if(selectedItem.toString() in userList){
-                                Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
-                                autoComplete7.text.clear()
-                            }else{
-                                userList.add(selectedItem.toString())
-                                autoComplete7.isEnabled = false
-                            }
-                        }
-                    }
-                }
-                adapter3.notifyDataSetChanged()
-                adapter4.notifyDataSetChanged()
-                adapter5.notifyDataSetChanged()
-                adapter6.notifyDataSetChanged()
-                adapter7.notifyDataSetChanged()
-                adapter8.notifyDataSetChanged()
             }
-            override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
+        }
+
+        val autoComplete4 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup4)
+
+        adapter4 = ArrayAdapter(this@CreateGroup,R.layout.list_item,getNamendSurnameFromData)
+
+        autoComplete4.setAdapter(adapter4)
+        autoComplete4.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
+
+            val selectedItem = adapterView.getItemAtPosition(i)
+
+            for(user in allFriendsInfo){
+                if(selectedItem == "${user.name} ${user.surname}"){
+                    if(selectedItem.toString() in selectedUsers){
+                        Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
+                        autoComplete4.text.clear()
+                    }else{
+                        selectedUsers.add(selectedItem.toString())
+                        autoComplete4.isEnabled = false
+
+                    }
+                }
             }
-        })
+        }
+        val autoComplete5 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup5)
+
+        adapter5 = ArrayAdapter(this@CreateGroup,R.layout.list_item,getNamendSurnameFromData)
+
+        autoComplete5.setAdapter(adapter5)
+        autoComplete5.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
+
+            val selectedItem = adapterView.getItemAtPosition(i)
+
+            for(user in allFriendsInfo){
+                if(selectedItem == "${user.name} ${user.surname}"){
+                    if(selectedItem.toString() in selectedUsers){
+                        Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
+                        autoComplete5.text.clear()
+                    }else{
+                        selectedUsers.add(selectedItem.toString())
+                        autoComplete5.isEnabled = false
+
+                    }
+                }
+            }
+        }
+        val autoComplete6 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup6)
 
 
+        adapter6 = ArrayAdapter(this@CreateGroup,R.layout.list_item,getNamendSurnameFromData)
 
+        autoComplete6.setAdapter(adapter6)
+        autoComplete6.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
+
+            val selectedItem = adapterView.getItemAtPosition(i)
+
+            for(user in allFriendsInfo){
+                if(selectedItem == "${user.name} ${user.surname}"){
+                    if(selectedItem.toString() in selectedUsers){
+                        Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
+                        autoComplete6.text.clear()
+                    }else{
+                        selectedUsers.add(selectedItem.toString())
+                        autoComplete6.isEnabled = false
+                    }
+                }
+            }
+        }
+        val autoComplete7 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup7)
+
+        adapter7 = ArrayAdapter(this@CreateGroup,R.layout.list_item,getNamendSurnameFromData)
+
+        autoComplete7.setAdapter(adapter7)
+        autoComplete7.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
+
+            val selectedItem = adapterView.getItemAtPosition(i)
+
+            for(user in allFriendsInfo){
+                if(selectedItem == "${user.name} ${user.surname}"){
+                    if(selectedItem.toString() in selectedUsers){
+                        Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
+                        autoComplete7.text.clear()
+                    }else{
+                        selectedUsers.add(selectedItem.toString())
+                        autoComplete7.isEnabled = false
+                    }
+                }
+            }
+        }
         val autoComplete8 = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextCreateGroup8)
 
-        adapter8 = ArrayAdapter(this,R.layout.list_item,getNamendSurname)
+        adapter8 = ArrayAdapter(this,R.layout.list_item,getNamendSurnameFromData)
 
         autoComplete8.visibility = View.GONE
         var textInput = findViewById<TextInputLayout>(R.id.textInput1)
@@ -235,13 +258,13 @@ class CreateGroup : AppCompatActivity() {
 
                 val selectedItem = adapterView.getItemAtPosition(i)
 
-                for(user in allUserInfo){
+                for(user in allFriendsInfo){
                     if(selectedItem == "${user.name} ${user.surname}"){
-                        if(selectedItem.toString() in userList){
+                        if(selectedItem.toString() in selectedUsers){
                             Toast.makeText(this@CreateGroup,"Sadece bir kez ekleyebilirsin",Toast.LENGTH_SHORT).show()
                             autoComplete8.text.clear()
                         }else{
-                            userList.add(selectedItem.toString())
+                            selectedUsers.add(selectedItem.toString())
                             autoComplete8.isEnabled = false
                         }
                     }
@@ -264,86 +287,125 @@ class CreateGroup : AppCompatActivity() {
             addmore3.visibility = View.GONE
         }
 
-
-
-        var cleanAllTexts = findViewById<LinearLayout>(R.id.cleangrouptexts)
-
-        cleanAllTexts.setOnClickListener{
-
-            userList.clear()
-
-            var groupName = findViewById<EditText>(R.id.selectGroupname)
-
-            groupName.text.clear()
-        }
-
-
-
         var saveBtn = findViewById<ImageView>(R.id.group_save)
-
         saveBtn.setOnClickListener {
-
             var groupName = findViewById<EditText>(R.id.selectGroupname).text.toString()
-
             var counter = 0
 
-            for(user in userList){
+            for(user in selectedUsers){
+                //println(user)
                 counter++
             }
 
             var clean_group_arraylist = ArrayList<Group>()
 
             if(counter < 1) {
-                Toast.makeText(this@CreateGroup, "Grubunuz en az iki kişi olmalıdır.", Toast.LENGTH_SHORT).show()
-            }else if(groupName.isBlank()){
-                Toast.makeText(this@CreateGroup, "Grup ismi boş olmamalıdır.", Toast.LENGTH_SHORT).show()
-            }
-            else if(counter >= 1 && groupName.isBlank() == false){
+                var getGroupOwnerInfo = Group()
 
-                var getandset_group_owner = Group()
-
-                ref2.addListenerForSingleValueEvent(object : ValueEventListener{
+                usersDataRef.addListenerForSingleValueEvent(object : ValueEventListener{
                     override fun onDataChange(snapshot: DataSnapshot) {
                         if(snapshot.exists()){
                             for(snap in snapshot.children){
                                 var temp = snap.getValue(com.R.R.model.UserInfo::class.java)
-                                for(user in userList){
                                     if(auth.currentUser?.email.toString() == temp?.mail){
-                                        getandset_group_owner.name = temp?.name
-                                        getandset_group_owner.surname = temp?.surname
-                                        getandset_group_owner.email = temp?.mail
-                                        getandset_group_owner.GroupName = groupName
-                                        getandset_group_owner.groupOwner = temp?.mail
+                                        getGroupOwnerInfo.groupOwner = temp?.mail
+                                        getGroupOwnerInfo.GroupName = groupName
+                                        getGroupOwnerInfo.name = temp?.name
+                                        getGroupOwnerInfo.surname = temp?.surname
+                                        getGroupOwnerInfo.email = temp?.mail
+                                        getGroupOwnerInfo.snapKeyOfGroup = groupRefKey
+                                }
+                                clean_group_arraylist.add(getGroupOwnerInfo)
+                            }
+                        }
+                        var send_group_name = groupName
+                        save_and_controldata(getGroupOwnerInfo,clean_group_arraylist,send_group_name,groupRefKey)
+                    }
+                    override fun onCancelled(error: DatabaseError) {
+                    }
+                })
+            }else if(groupName.isBlank()){
+                Toast.makeText(this@CreateGroup, "Grup ismi boş olmamalıdır.", Toast.LENGTH_SHORT).show()
+            }
+            else if(counter >= 0 && groupName.isBlank() == false){
+
+                var getGroupOwnerInfo = Group()
+
+                usersDataRef.addListenerForSingleValueEvent(object : ValueEventListener{
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        if(snapshot.exists()){
+                            for(snap in snapshot.children){
+                                var temp = snap.getValue(com.R.R.model.UserInfo::class.java)
+                                for(selectedUser in selectedUsers){
+                                    if(auth.currentUser?.email.toString() == temp?.mail){
+                                        getGroupOwnerInfo.groupOwner = temp?.mail
+                                        getGroupOwnerInfo.GroupName = groupName
+                                        getGroupOwnerInfo.name = temp?.name
+                                        getGroupOwnerInfo.surname = temp?.surname
+                                        getGroupOwnerInfo.email = temp?.mail
+                                        getGroupOwnerInfo.snapKeyOfGroup = groupRefKey
                                     }
                                     for(usermail in getMails){
-                                    if(user == "${temp?.name} ${temp?.surname}" && usermail.userMail == temp?.mail){
-                                        clean_group_arraylist.add(Group(auth.currentUser?.email,groupName,temp?.name,temp?.surname,temp?.mail))
-                                    }
+                                        if(selectedUser == "${temp?.name} ${temp?.surname}" && usermail.userMail == temp?.mail){
+                                            clean_group_arraylist.add(Group(auth.currentUser?.email.toString(),groupName,temp?.name,temp?.surname,temp?.mail,groupRefKey))
+                                        }
                                     }
                                 }
                             }
                         }
                         var send_group_name = groupName
-                        save_and_controldata(getandset_group_owner,clean_group_arraylist,send_group_name)
+                        save_and_controldata(getGroupOwnerInfo,clean_group_arraylist,send_group_name,groupRefKey)
                     }
                     override fun onCancelled(error: DatabaseError) {
-                        TODO("Not yet implemented")
                     }
                 })
             }
         }
+        var goToBack = findViewById<ImageView>(R.id.backToLoginPage3)
+        goToBack.setOnClickListener {
+            val intent = Intent(this@CreateGroup,MainActivity::class.java)
+            startActivity(intent)
+            finish()
+        }
     }
-    private fun save_and_controldata(creatorUser : Group, clean_group_arraylist : ArrayList<Group>, group_name : String){
-        var groupRef = database.getReference("Groups")
 
-        var auth = FirebaseAuth.getInstance()
+    private fun getInfoFromMail() {
+        var usersDataRef = database.getReference("UsersData")
+        usersDataRef.addListenerForSingleValueEvent(object : ValueEventListener{
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if(snapshot.exists()){
+                    var i = 0
+                    for(snap in snapshot.children){
+                        var temp = snap.getValue(com.R.R.model.UserInfo::class.java)
+                        for(user in getMails){
+                            if(user.userMail == temp?.mail){
+                                getNamendSurnameFromData.add(i,"${temp?.name.toString()} ${temp?.surname.toString()}")
+                                allFriendsInfo.add(com.R.R.model.UserInfo(temp?.name,temp?.surname,temp?.mail,temp?.pfpUri))
+                            }
+                        }
+                    }
+                }
+                CoroutineScope(Dispatchers.Main).launch {
+                    adapter3.notifyDataSetChanged()
+                    adapter4.notifyDataSetChanged()
+                    adapter5.notifyDataSetChanged()
+                    adapter6.notifyDataSetChanged()
+                    adapter7.notifyDataSetChanged()
+                    adapter8.notifyDataSetChanged()
+                }
+
+            }
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+    }
+
+    private fun save_and_controldata(creatorUser : Group, clean_group_arraylist : ArrayList<Group>, group_name : String,groupRefKey : String){
+        var groupRef = database.getReference("Groups")
 
         clean_group_arraylist.add(creatorUser)
 
-
         var clean_and_checkis_group_repeat = clean_group_arraylist.distinct()
-
-
 
         var checker = 0
 
@@ -360,28 +422,30 @@ class CreateGroup : AppCompatActivity() {
                                 {
                                     checker = 1
                                 }
-
                             }
                         }
                     }
                 }
                 if(checker == 1){
                     clean_group_arraylist.clear()
-                    Toast.makeText(this@CreateGroup,"Bu grup adı önceden kullanılmış, lütfen başka bir isim seçiniz",Toast.LENGTH_LONG).show()
+                    CoroutineScope(Dispatchers.Main).launch {
+                        Toast.makeText(this@CreateGroup,"Bu grup adı önceden kullanılmış, lütfen başka bir isim seçiniz",Toast.LENGTH_LONG).show()
+                    }
                 }else{
                     if(clean_and_checkis_group_repeat != null) {
-                        groupRef.push().setValue(clean_and_checkis_group_repeat)
-
-                        Toast.makeText(this@CreateGroup,"Grup başarıyla oluşturuldu.",Toast.LENGTH_LONG).show()
-                        val intent = Intent(this@CreateGroup, MainActivity::class.java)
-                        startActivity(intent)
-                        finish()
+                        groupRef.child(groupRefKey).setValue(clean_and_checkis_group_repeat).addOnSuccessListener {
+                            CoroutineScope(Dispatchers.Main).launch {
+                                Toast.makeText(this@CreateGroup,"Grup başarıyla oluşturuldu.",Toast.LENGTH_LONG).show()
+                                val intent = Intent(this@CreateGroup, MainActivity::class.java)
+                                startActivity(intent)
+                                finish()
+                            }
+                        }
                     }
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
             }
         })
     }
@@ -392,12 +456,6 @@ class CreateGroup : AppCompatActivity() {
         finish()
     }
 }
-
-
-
-
-
-
 
 
 

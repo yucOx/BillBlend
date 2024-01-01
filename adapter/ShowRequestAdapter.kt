@@ -1,3 +1,28 @@
+package com.yucox.splitwise.adapter
+
+
+import android.content.Context
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.ktx.database
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.ktx.storage
+import com.R.R.model.SendFriendRequest
+import com.R.R.model.UserInfo
+import com.google.firebase.auth.ktx.auth
+import com.yucox.splitwise.R
+import de.hdodenhof.circleimageview.CircleImageView
 
 class ShowRequestAdapter(private val context: Context, private var userList: ArrayList<UserInfo>, var randomImg : ArrayList<Int>) :
     RecyclerView.Adapter<ShowRequestAdapter.ViewHolder>() {
@@ -28,9 +53,6 @@ class ShowRequestAdapter(private val context: Context, private var userList: Arr
         holder.surname.text = item.surname.toString()
         holder.mail.text = item.mail.toString()
         holder.acceptBtn.setOnClickListener {
-            var auth = FirebaseAuth.getInstance()
-            var database = Firebase.database
-            var ref = database.getReference("FriendRequest")
             ref.addListenerForSingleValueEvent(object : ValueEventListener{
                 override fun onDataChange(snapshot: DataSnapshot) {
                     if(snapshot.exists()){
@@ -43,15 +65,11 @@ class ShowRequestAdapter(private val context: Context, private var userList: Arr
                         }
                     }
                 }
-
                 override fun onCancelled(error: DatabaseError) {
-                    TODO("Not yet implemented")
                 }
             })
         }
         holder.rejectBtn.setOnClickListener {
-            var database = Firebase.database
-            var ref = database.getReference("FriendRequest")
             var builder = AlertDialog.Builder(context)
             builder.setTitle("Arkadaşlık isteğini reddetmek istediğine emin misin?")
             builder.setNegativeButton("Evet") { dialog, which ->
@@ -67,23 +85,17 @@ class ShowRequestAdapter(private val context: Context, private var userList: Arr
                             }
                         }
                     }
-
                     override fun onCancelled(error: DatabaseError) {
-                        TODO("Not yet implemented")
                     }
                 })
             }
             builder.setPositiveButton("Hayır"){dialog,which->}.show()
         }
-            if(counter == 0) {
-            randomImgShuffled = randomImg.shuffled()
-            counter++
-        }
         Firebase.storage.getReference(item.mail.toString()).downloadUrl
             .addOnSuccessListener {uri->
                 Glide.with(context).load(uri).into(holder.pfp)
             }.addOnFailureListener{
-                Glide.with(context).load(randomImgShuffled[position]).into(holder.pfp)
+                Glide.with(context).load(randomImg.shuffled()[0]).into(holder.pfp)
             }
     }
 

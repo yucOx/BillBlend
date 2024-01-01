@@ -1,310 +1,426 @@
+package com.yucox.splitwise.activity
+
+
+import android.content.Intent
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.util.Log
+import android.view.View
+import android.widget.ImageView
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.MobileAds
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.ktx.database
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.ktx.storage
+import com.R.R.model.Group
+import com.R.R.model.UserInfo
+import com.R.R.model.WhoHowmuch
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.firebase.database.DatabaseReference
+import com.yucox.splitwise.R
+import com.yucox.splitwise.adapter.ListBillsAdapter
+import com.yucox.splitwise.adapter.ListUserAdapter
+import com.yucox.splitwise.model.PhotoLocationBillName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class DetailsOfGroupActivity : AppCompatActivity() {
-    private lateinit var auth : FirebaseAuth
-    private lateinit var database : FirebaseDatabase
-    private lateinit var showgroupMembers : ImageView
-    private lateinit var hidegroupMembers : ImageView
-    private lateinit var showBillNamesRecycler : RecyclerView
-    private lateinit var billNamesAdapter : ListBillsAdapter
-    private var billUsers : HashSet<String> = hashSetOf()
-    private var hashBills : HashSet<String> = hashSetOf()
-    var arraylistbillNames = ArrayList<String>()
-    private lateinit var listenerForGroupShow : ValueEventListener
+    private lateinit var auth: FirebaseAuth
+    private lateinit var database: FirebaseDatabase
+    private lateinit var list_bills_recyclerview: RecyclerView
+    private lateinit var listBillsAdapter: ListBillsAdapter
+    private var hashBills: HashSet<String> = hashSetOf()
+    var billNames = ArrayList<String>()
+    private lateinit var singleListener: ValueEventListener
+    private var mInterstitialAd: InterstitialAd? = null
+    private final var TAG = "MainActivity"
+    var getPhotoLocation: String? = ""
+    lateinit var refForBillPrice: DatabaseReference
+    lateinit var ref: DatabaseReference
+    lateinit var refPerson: DatabaseReference
+    lateinit var refForGroup: DatabaseReference
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.detailsofgroup_activity)
-        lateinit var mAdView : AdView
+        lateinit var mAdView: AdView
 
         MobileAds.initialize(this) {}
-
         mAdView = findViewById(R.id.adView3)
         val adRequest = AdRequest.Builder().build()
         mAdView.loadAd(adRequest)
 
         var groupName = intent.getStringExtra("GroupName")
-
+        var snapKeyOfGroup = intent.getStringExtra("snapKeyOfGroup")
         var showgroupName = findViewById<TextView>(R.id.groupName_deatilsofgroupactivity)
         showgroupName.text = groupName
 
+        auth = Firebase.auth
         database = Firebase.database
-        var ref = database.getReference("Groups")
-        var refPerson = database.getReference( "UsersData")
+        refForBillPrice = Firebase.database.getReference("Bills")
+        ref = database.getReference("Groups")
+        refPerson = database.getReference("UsersData")
+        refForGroup = database.getReference("Bills")
 
         var groupUsers = ArrayList<UserInfo>()
         var group = ArrayList<Group>()
 
-        var adapter = ListUserAdapter(this@DetailsOfGroupActivity,groupUsers,group)
+        var adapter = ListUserAdapter(this@DetailsOfGroupActivity, groupUsers, group)
         var recyclerView = findViewById<RecyclerView>(R.id.recyclyerView_detailsofgroup)
-        recyclerView.layoutManager = LinearLayoutManager(this@DetailsOfGroupActivity,RecyclerView.HORIZONTAL,false)
+        recyclerView.layoutManager =
+            LinearLayoutManager(this@DetailsOfGroupActivity, RecyclerView.HORIZONTAL, false)
         recyclerView.adapter = adapter
 
+        var leftFromHGroupBtn = findViewById<ImageView>(R.id.leftFromGroupBtn)
+        leftFromHGroupBtn.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Gruptan ayrılmak istediğinize emin misiniz?")
+                .setNegativeButton("Evet") { dialog, which ->
+                    ref.addListenerForSingleValueEvent(object : ValueEventListener {
+                        override fun onDataChange(snapshot: DataSnapshot) {
+                            for (snap in snapshot.children) {
+                                if (snap.exists()) {
+                                    for (superSnap in snap.children) {
+                                        if (superSnap.child("email")
+                                                .getValue() == auth.currentUser?.email && superSnap.child(
+                                                "groupName"
+                                            ).getValue() == groupName
+                                        ) {
+                                            superSnap.child("surName")
+                                            ref.child(snap.key.toString())
+                                                .child(superSnap.key.toString()).removeValue()
+                                                .addOnSuccessListener {
+                                                    CoroutineScope(Dispatchers.Main).launch {
+                                                        val intent = Intent(
+                                                            this@DetailsOfGroupActivity,
+                                                            MainActivity::class.java
+                                                        )
+                                                        startActivity(intent)
+                                                        finish()
+                                                    }
+                                                }
+                                        }
+                                    }
+                                }
 
-        var listenerForUserInfo = refPerson.addValueEventListener(object : ValueEventListener{
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if(snapshot.exists()){
-                    for(snap in snapshot.children){
-                        var temp = snap.getValue(UserInfo::class.java)
-                        for(user in group) {
-                            if (temp?.name == user.name && temp?.mail == user?.email){
-                                groupUsers.distinct()
-                                groupUsers.add(temp!!)
                             }
                         }
-                    }
-                }
-                adapter.notifyDataSetChanged()
-            }
 
-            override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
-            }
-        })
+                        override fun onCancelled(error: DatabaseError) {
 
-        var listener = ref.addValueEventListener(object : ValueEventListener{
+                        }
+                    })
+                }.setPositiveButton("Hayır") { dialog, which -> }
+                .show()
+        }
+
+        var getGroupOwner: String? = ""
+        ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if(snapshot.exists()){
-                    for(snap in snapshot.children){
-                        if(snap.exists()){
-                            for(realSnap in snap.children){
+                if (snapshot.exists()) {
+                    for (snap in snapshot.children) {
+                        if (snap.key == snapKeyOfGroup) {
+                            for (realSnap in snap.children) {
                                 var temp = realSnap.getValue(Group::class.java)
-                                if(temp?.GroupName == groupName) {
-                                    group.add(Group(temp?.groupOwner,temp?.GroupName,temp?.name,temp?.surname,temp?.email))
+                                if (temp?.GroupName == groupName) {
+                                    group.add(
+                                        Group(
+                                            temp?.groupOwner,
+                                            temp?.GroupName,
+                                            temp?.name,
+                                            temp?.surname,
+                                            temp?.email
+                                        )
+                                    )
+                                    getGroupOwner = temp?.groupOwner
                                 }
                             }
                         }
                     }
                 }
-            refPerson.addValueEventListener(listenerForUserInfo)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
-            }
-        })
-        ref.addValueEventListener(listener)
-
-
-
-        var hideOrshow = findViewById<TextView>(R.id.hideOrshow)
-        hideOrshow.text = "Gizle"
-
-
-        hidegroupMembers = findViewById(R.id.hidegroupMembers_detailsofgroupactivity)
-        hidegroupMembers.visibility = View.VISIBLE
-        hidegroupMembers.setOnClickListener {
-            recyclerView.visibility = View.GONE
-            hidegroupMembers.visibility = View.GONE
-            showgroupMembers.visibility = View.VISIBLE
-            hideOrshow.text = "Göster"
-        }
-
-        showgroupMembers = findViewById<ImageView>(R.id.showgroupMembersBtn)
-        showgroupMembers.visibility = View.GONE
-        showgroupMembers.setOnClickListener {
-            recyclerView.visibility = View.VISIBLE
-            showgroupMembers.visibility = View.GONE
-            hidegroupMembers.visibility = View.VISIBLE
-            hideOrshow.text = "Gizle"
-        }
-
-
-        var addNewBill = findViewById<LinearLayout>(R.id.addBillBtn)
-
-        var fragmentContainer = findViewById<View>(R.id.fragmentContainerView_detailsofgroupactivity)
-        fragmentContainer.visibility = View.GONE
-
-        var secondLinear = findViewById<LinearLayout>(R.id.secondLinear)
-
-        var detailsOfGroupBackground = findViewById<LinearLayout>(R.id.detailsofgroupBackground)
-        detailsOfGroupBackground.setOnClickListener{
-            secondLinear.visibility = View.VISIBLE
-            showBillNamesRecycler.visibility = View.VISIBLE
-            fragmentContainer.visibility = View.GONE
-            showgroupMembers.isClickable = true
-            addNewBill.visibility = View.VISIBLE
-            if(hidegroupMembers.isVisible == true){
-                recyclerView.visibility = View.VISIBLE
-            }else{
-                recyclerView.visibility = View.INVISIBLE
-            }
-            if(showgroupMembers.isVisible == true){
-                recyclerView.visibility = View.GONE
-            }
-            var refForGroup2 = database.getReference("Bills")
-            refForGroup2.addValueEventListener(listenerForGroupShow)
-            billNamesAdapter.notifyDataSetChanged()
-        }
-
-        var counter = 0
-        addNewBill.setOnClickListener {
-            if(counter == 0) {
-                var AddBillFragment = AddBill()
-                var args = Bundle()
-                args.putString("GroupName", groupName)
-                AddBillFragment.arguments = args
-                replaceFragment(AddBillFragment)
-                counter++
-                Toast.makeText(this@DetailsOfGroupActivity,"Kapatmak için çerçeve dışına tıkla!",Toast.LENGTH_LONG).show()
-            }
-            secondLinear.visibility = View.GONE
-            showBillNamesRecycler.visibility = View.GONE
-            recyclerView.visibility = View.GONE
-            addNewBill.visibility = View.GONE
-            fragmentContainer.visibility = View.VISIBLE
-            fragmentContainer.isClickable = true
-            showgroupMembers.isClickable = false
-        }
-
-
-
-        var refForGroup = database.getReference("Bills")
-        var billNamesHash = hashSetOf<String>()
-        var dataWhoHowmuch = ArrayList<WhoHowmuch>()
-
-        showBillNamesRecycler = findViewById<RecyclerView>(R.id.showBillNamesRecycler)
-        billNamesAdapter = ListBillsAdapter(this,arraylistbillNames,groupName,hashBills,billUsers)
-        showBillNamesRecycler.layoutManager = LinearLayoutManager(this,RecyclerView.VERTICAL,false)
-        showBillNamesRecycler.adapter = billNamesAdapter
-
-        listenerForGroupShow = refForGroup.addValueEventListener(object : ValueEventListener{
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if(snapshot.exists()){
-                    for(snap in snapshot.children){
-                        if(snap.exists()){
-                            for(realSnap in snap.children){
-                                var temp = realSnap.getValue(WhoHowmuch::class.java)
-                                if(temp?.groupName == groupName) {
-                                    billNamesHash.add(temp?.billname.toString())
-                                    billUsers.add(temp?.whoBought.toString())
-                                    for(a in billNamesHash){
-                                        if(a in arraylistbillNames){
-
-                                        }else if(!(a in arraylistbillNames) && !a.isBlank())
-                                        arraylistbillNames.add(a)
+                refPerson.addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        if (snapshot.exists()) {
+                            for (snap in snapshot.children) {
+                                var temp = snap.getValue(UserInfo::class.java)
+                                for (user in group) {
+                                    if (temp?.name == user.name && temp?.mail == user?.email) {
+                                        groupUsers.distinct()
+                                        groupUsers.add(temp!!)
                                     }
                                 }
                             }
                         }
+                        CoroutineScope(Dispatchers.Main).launch {
+                            adapter.notifyDataSetChanged()
+                        }
                     }
-                }
-                billNamesAdapter.notifyDataSetChanged()
+                    override fun onCancelled(error: DatabaseError) {
+                    }
+                })
             }
-
-
             override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
             }
         })
-        refForGroup.addValueEventListener(listenerForGroupShow)
-        var deleteToGroup = findViewById<ImageView>(R.id.deleteToGroup)
-        deleteToGroup.setOnClickListener {
-            if(group[0].groupOwner == Firebase.auth.currentUser?.email){
+
+        var addNewBill = findViewById<ImageView>(R.id.addBillBtn)
+        addNewBill.setOnClickListener {
+            if (groupName != null) {
                 var builder = AlertDialog.Builder(this@DetailsOfGroupActivity)
-                builder.setTitle("Grubu silmek istediğinze emin misiniz?")
-                    .setNegativeButton("Evet, son kararım!"){dialog,which ->
-                        var refForDelete = database.getReference("Groups")
-                        refForDelete.addValueEventListener(object : ValueEventListener{
-                            override fun onDataChange(snapshot: DataSnapshot) {
-                                if(snapshot.exists()){
-                                    for(snap in snapshot.children){
-                                        if(snap.exists()){
-                                            for(rsnap in snap.children){
-                                                var control = rsnap.child("groupName").getValue()?.equals(groupName)
-                                                var key = snap.key
-                                                if(control == true){
-                                                    refForDelete.child(key.toString()).removeValue()
-                                                    Toast.makeText(this@DetailsOfGroupActivity,"Grup Başarıyla Silindi!",Toast.LENGTH_LONG).show()
-                                                    recyclerView.adapter = null
-                                                    deleteBillsAndPhotos(groupName.toString(),billUsers)
-                                                }
-                                            }
+                builder.setTitle("Fatura eklemek için bir adet reklam izlemeniz gerekiyor")
+                builder.setNegativeButton("Evet") { dialog, which ->
+                    val intent = Intent(this, AddBillActivity::class.java)
+                    intent.putExtra("groupName", groupName)
+                    intent.putExtra("snapKeyOfGroup", snapKeyOfGroup)
+                    startActivity(intent)
+                }.setPositiveButton("Hayır") { dialog, which -> }
+                    .show()
+            }
+        }
+
+        var backToActivity = findViewById<ImageView>(R.id.backToLoginPage2)
+        backToActivity.setOnClickListener {
+            finish()
+        }
+
+        var billNamesHash = hashSetOf<String>()
+        var hashPhoto = ArrayList<PhotoLocationBillName>()
+        var getPhotosWLocation = ArrayList<PhotoLocationBillName>()
+
+        list_bills_recyclerview = findViewById<RecyclerView>(R.id.showBillNamesRecycler)
+        listBillsAdapter = ListBillsAdapter(
+            this,
+            billNames,
+            groupName,
+            getPhotosWLocation,
+            snapKeyOfGroup
+        )
+        list_bills_recyclerview.layoutManager =
+            LinearLayoutManager(this, RecyclerView.VERTICAL, false)
+        list_bills_recyclerview.adapter = listBillsAdapter
+
+        var getBillsFromData = ArrayList<WhoHowmuch>()
+        singleListener = (object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    billNames.clear()
+                    hashPhoto.clear()
+                    for (snap in snapshot.children) {
+                        if (snap.exists()) {
+                            for (realSnap in snap.children) {
+                                var temp = realSnap.getValue(WhoHowmuch::class.java)
+                                if (temp?.groupName == groupName &&  temp?.snapKeyOfGroup == snapKeyOfGroup){
+                                    billNamesHash.add(temp?.billname.toString())
+                                    if (temp?.whohasPaid == 2) {
+                                        hashPhoto.add(
+                                            PhotoLocationBillName(
+                                                temp?.billname.toString(),
+                                                temp?.photoLocation.toString()
+                                            )
+                                        )
+                                    }
+                                    for (a in billNamesHash) {
+                                        if (a in billNames) {
+                                            continue
+                                        } else if (!(a in billNames) && !a.isBlank()) {
+                                            billNames.add(a)
                                         }
                                     }
                                 }
                             }
-
-                            override fun onCancelled(error: DatabaseError) {
-
+                        }
+                    }
+                }
+                for (a in hashPhoto) {
+                    var tempStorageRef = Firebase.storage.getReference(a.billName.toString())
+                    tempStorageRef.child(a.photoLocation.toString()).downloadUrl.addOnSuccessListener { uri ->
+                        println(uri.lastPathSegment)
+                        getPhotoLocation = uri.lastPathSegment
+                        getPhotosWLocation.add(
+                            PhotoLocationBillName(a.billName.toString(), getPhotoLocation, uri.toString())
+                        )
+                        CoroutineScope(Dispatchers.Main).launch {
+                            listBillsAdapter.notifyDataSetChanged()
+                        }
+                    }.addOnFailureListener {
+                        getPhotosWLocation.add(
+                            PhotoLocationBillName(
+                                a.billName.toString(),
+                                getPhotoLocation,
+                                ""
+                            )
+                        )
+                        CoroutineScope(Dispatchers.Main).launch {
+                            listBillsAdapter.notifyDataSetChanged()
+                        }
+                    }
+                }
+                CoroutineScope(Dispatchers.Main).launch {
+                    listBillsAdapter.notifyDataSetChanged()
+                    var refreshLayout = findViewById<SwipeRefreshLayout>(R.id.refreshMe)
+                    refreshLayout.isRefreshing = false
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+        refForGroup.addListenerForSingleValueEvent(singleListener)
+        var deleteToGroup = findViewById<ImageView>(R.id.deleteToGroup)
+        deleteToGroup.setOnClickListener {
+            var refForDel = database.getReference("Groups")
+            if (group[0].groupOwner == Firebase.auth.currentUser?.email) {
+                var builder = AlertDialog.Builder(this@DetailsOfGroupActivity)
+                builder.setTitle("Grubu silmek istediğinze emin misiniz?")
+                    .setNegativeButton("Evet, son kararım!") { dialog, which ->
+                        refForDel.child(snapKeyOfGroup.toString()).removeValue()
+                            .addOnSuccessListener {
+                                deletePhotoOfBills(snapKeyOfGroup)
                             }
-                        })
-                    }.setPositiveButton("Hayır, sadece elim çarptı..") {dialog,which ->
-                        Toast.makeText(this@DetailsOfGroupActivity,"Grup Başarıyla Silin- \nDemek sadece elin çarptı ^^",Toast.LENGTH_LONG).show()
+                    }.setPositiveButton("Hayır, sadece elim çarptı..") { dialog, which ->
                     }.show()
-            }else{
-                Toast.makeText(this@DetailsOfGroupActivity,"Sadece Grup Kurucusu Grubu Silebilir.",Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(
+                    this@DetailsOfGroupActivity,
+                    "Sadece Grup Kurucusu Grubu Silebilir.",
+                    Toast.LENGTH_LONG
+                ).show()
                 return@setOnClickListener
             }
         }
 
-        var refForBillPrice = Firebase.database.getReference("Bills")
-        refForBillPrice.addValueEventListener(object : ValueEventListener{
+        var refreshLayout = findViewById<SwipeRefreshLayout>(R.id.refreshMe)
+        refreshLayout.setOnRefreshListener {
+            refForGroup.addListenerForSingleValueEvent(singleListener)
+        }
+        var threeDotOptionsDetail =
+            findViewById<ConstraintLayout>(R.id.threedot_options_detail_layout2)
+        threeDotOptionsDetail.visibility = View.GONE
+        var threeDotBtn = findViewById<ImageView>(R.id.three_dot_btn2)
+        threeDotBtn.setOnClickListener { showThreeDotOptions() }
+    }
+
+    private fun deletePhotoOfBills(snapKeyOfGroup : String?) {
+        var snapKeyOfBill : String
+        var billsNodeRef = database.getReference("Bills")
+        billsNodeRef.addListenerForSingleValueEvent(object : ValueEventListener{
             override fun onDataChange(snapshot: DataSnapshot) {
                 if(snapshot.exists()){
                     for(snap in snapshot.children){
-                        if(snap.exists()){
-                            for(rsnap in snap.children){
-                                var temp = rsnap.child("totalPrice").getValue()
-                                hashBills?.add(temp.toString())
+                        for(rsnap in snap.children){
+                            if(rsnap.child("snapKeyOfGroup").getValue()?.equals(snapKeyOfGroup) == true){
+                                snapKeyOfBill = snap.key.toString()
+                                if(rsnap.child("photoLocation").getValue().toString().isNullOrEmpty() == false){
+                                    var getSpecialNodeOfBill = rsnap.getValue(WhoHowmuch::class.java)
+                                    println(rsnap.childrenCount)
+                                    Firebase.storage.getReference(getSpecialNodeOfBill?.billname.toString()).child(getSpecialNodeOfBill?.photoLocation.toString()).delete()
+                                    Firebase.database.getReference("Bills").child(snapKeyOfBill).removeValue()
+                                }
                             }
                         }
                     }
                 }
+                CoroutineScope(Dispatchers.Main).launch {
+                    var intent = Intent(this@DetailsOfGroupActivity, MainActivity::class.java)
+                    startActivity(intent)
+                    finish()
+                }
             }
-
             override fun onCancelled(error: DatabaseError) {
-
             }
         })
+    }
 
-        var refreshLayout = findViewById<SwipeRefreshLayout>(R.id.refreshMe)
-        refreshLayout.setOnRefreshListener {
-            refreshLayout.isRefreshing = false
+    private fun showThreeDotOptions() {
+        var threeDotOptionsDetail =
+            findViewById<ConstraintLayout>(R.id.threedot_options_detail_layout2)
+        if (threeDotOptionsDetail.visibility == View.GONE) {
+            threeDotOptionsDetail.visibility = View.VISIBLE
+        } else {
+            threeDotOptionsDetail.visibility = View.GONE
         }
     }
 
-    private fun replaceFragment(fragment : Fragment) {
-        val fragmentManager = supportFragmentManager
-        val fragmentTransaction = fragmentManager.beginTransaction()
-        fragmentTransaction.replace(R.id.fragmentContainerView_detailsofgroupactivity,fragment)
-        fragmentTransaction.commit()
+    override fun onStart() {
+        super.onStart()
+    }
+
+    override fun onDestroy() {
+        refForGroup.removeEventListener(singleListener)
+        super.onDestroy()
+    }
+
+    override fun onRestart() {
+        CoroutineScope(Dispatchers.IO).launch {
+            delay(1000)
+            refForGroup.addListenerForSingleValueEvent(singleListener)
+        }
+        super.onRestart()
+    }
+
+    private fun loadAds(groupName: String) {
+        var adRequest = AdRequest.Builder().build()
+        InterstitialAd.load(
+            this,
+            "ca-app-pub-5841174734258930/8173377178",
+            adRequest,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdFailedToLoad(adError: LoadAdError) {
+                    adError?.toString()?.let { Log.d(TAG, it) }
+                    mInterstitialAd = null
+                }
+
+                override fun onAdLoaded(interstitialAd: InterstitialAd) {
+                    println("Ad Loaded")
+                    mInterstitialAd = interstitialAd
+                }
+            })
+    }
+
+    private fun showAds(groupName: String) {
+        if (mInterstitialAd != null) {
+            mInterstitialAd?.show(this)
+            mInterstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    println("Ad Dismissed")
+                    mInterstitialAd = null
+                    val intent = Intent(this@DetailsOfGroupActivity, AddBillActivity::class.java)
+                    intent.putExtra("groupName", groupName)
+                    startActivity(intent)
+                }
+
+                override fun onAdShowedFullScreenContent() {
+                    println("Ad Showed")
+                    mInterstitialAd = null
+                }
+            }
+        } else {
+            println("The interstitial ad wasn't ready yet.")
+        }
     }
 
     override fun onBackPressed() {
         finish()
     }
-    fun deleteBillsAndPhotos(groupName : String, billUsers : HashSet<String>){
-        var dataRef = Firebase.database.getReference("Bills")
-        dataRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    for (snap in snapshot.children) {
-                        for (rsnap in snap.children) {
-                            var temp = rsnap.getValue(WhoHowmuch::class.java)
-                            for(bill in arraylistbillNames) {
-                                if (temp?.billname == bill) {
-                                    var uniqueId = snap.key.toString()
-                                    dataRef.child(uniqueId).removeValue().addOnSuccessListener {
-                                    }
-                                }
-                                for(a in billUsers) {
-                                    var storageRef = Firebase.storage.getReference("$groupName").child(bill).child(a)
-                                    storageRef.delete()
-                                }
-                            }
-                        }
-                    }
-                }
-                finish()
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-            }
-        })
-    }
 }
-
-
-
 
 
 

@@ -1,3 +1,33 @@
+package com.yucox.splitwise.fragment
+
+import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.Toast
+import androidx.core.widget.addTextChangedListener
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.ktx.database
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.FirebaseStorage
+import com.R.R.model.UserInfo
+import com.google.firebase.storage.ktx.storage
+import com.yucox.splitwise.R
+import com.yucox.splitwise.adapter.SearchAdapter
+import com.yucox.splitwise.model.GetUserPhotoWithName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 
 class AddFriendFragment : Fragment() {
@@ -19,6 +49,7 @@ class AddFriendFragment : Fragment() {
         var database = Firebase.database
         var ref = database.getReference("UsersData")
         var userList = ArrayList<UserInfo>()
+        var getUserPhotoWNameArray = ArrayList<GetUserPhotoWithName>()
 
 
         var randomPfp = ArrayList<Int>()
@@ -31,13 +62,11 @@ class AddFriendFragment : Fragment() {
         randomPfp.add(R.drawable.einstein)
         randomPfp.add(R.drawable.tesla)
 
-        var adapter = SearchAdapter(requireContext(),userList,randomPfp)
+        var adapter = SearchAdapter(requireContext(),userList,getUserPhotoWNameArray)
         var recyclerView = view.findViewById<RecyclerView>(R.id.listSavedUsers)
         recyclerView.layoutManager = LinearLayoutManager(context, RecyclerView.VERTICAL,false)
         recyclerView.adapter = adapter
 
-        var getNames = ArrayList<String>()
-        var getMails = ArrayList<String>()
         var searchResult = view.findViewById<EditText>(R.id.searchingAreaFrg)
         var getTempUsers = ArrayList<UserInfo>()
         ref.addListenerForSingleValueEvent(object : ValueEventListener{
@@ -54,16 +83,28 @@ class AddFriendFragment : Fragment() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
             }
         })
 
         var searchBtn = view.findViewById<ImageView>(R.id.searchBtnFrg)
         searchBtn.setOnClickListener {
             userList.clear()
+            getUserPhotoWNameArray.clear()
+            recyclerView.removeAllViews()
             var getsearchResult = searchResult.text.toString().lowercase().trim()
             if(!getsearchResult.isBlank() && getTempUsers != null){
                 for(a in getTempUsers){
+                    Firebase.storage.getReference(a.mail.toString()).downloadUrl.addOnSuccessListener { uri ->
+                        getUserPhotoWNameArray.add(GetUserPhotoWithName(uri.toString(),a.mail))
+                        CoroutineScope(Dispatchers.Main).launch {
+                            adapter.notifyDataSetChanged()
+                        }
+                    }.addOnFailureListener {
+                        getUserPhotoWNameArray.add(GetUserPhotoWithName(null,a.mail))
+                        CoroutineScope(Dispatchers.Main).launch {
+                            adapter.notifyDataSetChanged()
+                        }
+                    }
                     var b = a.name?.lowercase()
                     if(b?.contains(getsearchResult) == true){
                         userList.add(a!!)

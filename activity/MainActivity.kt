@@ -1,48 +1,89 @@
+package com.yucox.splitwise.activity
+
+
+import android.content.Intent
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.view.View
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.Toast
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.gms.ads.AdError
+import com.google.android.gms.ads.AdListener
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.ktx.database
+import com.google.firebase.ktx.Firebase
+import com.yucox.splitwise.R
+import com.R.R.model.Group
+import com.R.R.model.UserInfo
+import com.google.android.gms.auth.api.Auth
+import com.google.firebase.database.ktx.getValue
+import com.google.firebase.storage.ktx.storage
+import com.yucox.splitwise.adapter.ListGroupAdapter
+import com.yucox.splitwise.fragment.AddFriendFragment
+import com.yucox.splitwise.fragment.SettingsFragment
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
-    private lateinit var listener2 : ValueEventListener
+    private lateinit var listener2: ValueEventListener
     private var mInterstitialAd: InterstitialAd? = null
-
     override fun onCreate(savedInstanceState: Bundle?) {
-        lateinit var mAdView : AdView
+        lateinit var mAdView: AdView
         super.onCreate(savedInstanceState)
         setContentView(R.layout.main_activity)
+        var hideNavBtn = findViewById<ImageView>(R.id.hideNavBtn)
+        var auth = Firebase.auth
 
         loadAds()
-
         MobileAds.initialize(this) {}
-
         mAdView = findViewById(R.id.adView)
         val adRequest = AdRequest.Builder().build()
         mAdView.loadAd(adRequest)
-        mAdView.adListener = object: AdListener() {
-            override fun onAdClicked() {
-            }
+        adsProperties(mAdView)
 
-            override fun onAdClosed() {
-            }
-
-            override fun onAdFailedToLoad(adError : LoadAdError) {
-                println("hata")
-            }
-
-            override fun onAdImpression() {
-            }
-
-            override fun onAdLoaded() {
-                println("yüklendi")
-            }
-
-            override fun onAdOpened() {
-            }
+        var storage = Firebase.storage.getReference(auth.currentUser?.email.toString())
+        var getPfpBeforeGoToSettings: String? = null
+        storage.downloadUrl.addOnSuccessListener { uri ->
+            getPfpBeforeGoToSettings = uri.toString()
         }
-        var text = findViewById<TextView>(R.id.tellMeHowMuch)
-        text.visibility = View.GONE
-        refreshData()
+        var getMainUserInfoForSettings = UserInfo()
+        var userListRef = Firebase.database.getReference("UsersData")
+        userListRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    for (snap in snapshot.children) {
+                        var temp = snap.getValue<com.R.R.model.UserInfo>()
+                        if (temp?.mail == auth.currentUser?.email) {
+                            getMainUserInfoForSettings.name = temp?.name
+                            getMainUserInfoForSettings.surname = temp?.surname
+                            getMainUserInfoForSettings.mail = temp?.mail
+                        }
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+
         var addFriendbtn = findViewById<ImageView>(R.id.addFriendbtn)
         var settingsBtn = findViewById<ImageView>(R.id.settingsBtnmainactivity)
-        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
 
         var recyclerViewGroup = findViewById<RecyclerView>(R.id.GroupRecyclerView)
         var createnewGrouLinear = findViewById<LinearLayout>(R.id.createnewGroupLinear)
@@ -51,15 +92,130 @@ class MainActivity : AppCompatActivity() {
 
         recyclerViewGroup.visibility = View.VISIBLE
         createnewGrouLinear.visibility = View.VISIBLE
-
+        fragmentContainer.visibility = View.INVISIBLE
 
         var friendsBtn = findViewById<ImageView>(R.id.friendsBtn)
         friendsBtn.setOnClickListener {
-            val intent = Intent(this@MainActivity,FriendsActivity::class.java)
+            val intent = Intent(this@MainActivity, FriendsActivity::class.java)
             startActivity(intent)
         }
 
-        background.setOnClickListener{
+        background.setOnClickListener {
+            fragmentContainer.visibility = View.INVISIBLE
+            recyclerViewGroup.visibility = View.VISIBLE
+            createnewGrouLinear.visibility = View.VISIBLE
+            hideNavBtn.visibility = View.GONE
+
+            val fragmentManager = supportFragmentManager
+            val fragmentTransaction = fragmentManager.beginTransaction()
+            val fragment = fragmentManager.findFragmentById(R.id.fragmentContainer)
+            if (fragment != null) {
+                fragmentTransaction.remove(fragment)
+                fragmentTransaction.commit()
+            }
+            addFriendbtn.isClickable = true
+            settingsBtn.isClickable = true
+        }
+
+        addFriendbtn.setOnClickListener {
+            addFriendbtn.isClickable = false
+            settingsBtn.isClickable = false
+            recyclerViewGroup.visibility = View.INVISIBLE
+            createnewGrouLinear.visibility = View.INVISIBLE
+            val addFragment = AddFriendFragment()
+            replaceFragment(addFragment)
+            hideNavBtn.visibility = View.VISIBLE
+        }
+
+        var answerTheRequest = findViewById<ImageView>(R.id.acceptRequestBtn)
+        answerTheRequest.setOnClickListener {
+            val intent = Intent(this@MainActivity, AnswerFriendshipRequest::class.java)
+            startActivity(intent)
+        }
+
+        settingsBtn.setOnClickListener {
+            addFriendbtn.isClickable = false
+            settingsBtn.isClickable = false
+            recyclerViewGroup.visibility = View.INVISIBLE
+            createnewGrouLinear.visibility = View.INVISIBLE
+            val addFragment = SettingsFragment()
+            val bundle = Bundle().apply {
+                putString("pfp", getPfpBeforeGoToSettings)
+                putString("name",getMainUserInfoForSettings.name)
+                putString("surname",getMainUserInfoForSettings.surname)
+                putString("mail",getMainUserInfoForSettings.mail)
+
+            }
+            addFragment.arguments = bundle
+            replaceFragment(addFragment)
+            hideNavBtn.visibility = View.VISIBLE
+
+        }
+        var createGroup = findViewById<ImageView>(R.id.createnewGroup)
+        createGroup.setOnClickListener {
+            val intent = Intent(this@MainActivity, CreateGroup::class.java)
+            startActivity(intent)
+            finish()
+        }
+
+        var database = Firebase.database
+        var groupRef = database.getReference("Groups")
+        var getGroupInfo = ArrayList<Group>()
+        var hashset = hashSetOf<String>()
+        var whichGroupUserInSnapKeys = mutableListOf<String>()
+
+
+        var groupAdapter =
+            ListGroupAdapter(this@MainActivity, getGroupInfo, hashset, whichGroupUserInSnapKeys)
+
+        recyclerViewGroup.layoutManager =
+            LinearLayoutManager(this@MainActivity, RecyclerView.VERTICAL, false)
+        recyclerViewGroup.adapter = groupAdapter
+
+        var getGroupNames = HashSet<String>()
+        groupRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    for (snap in snapshot.children) {
+                        if (snap.exists()) {
+                            for (realSnap in snap.children) {
+                                var temp = realSnap.getValue(Group::class.java)
+                                if (auth.currentUser?.email == temp?.email) {
+                                    getGroupNames.add(temp?.GroupName.toString())
+                                    whichGroupUserInSnapKeys.add(snap.key.toString())
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+        groupRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    for (snap in snapshot.children) {
+                        if (snap.key in whichGroupUserInSnapKeys) {
+                            for (rsnap in snap.children) {
+                                var a = rsnap.getValue(Group::class.java)
+                                getGroupInfo.add(a!!)
+                                hashset.add(a.GroupName.toString())
+                            }
+                        }
+                    }
+                }
+                CoroutineScope(Dispatchers.Main).launch {
+                    groupAdapter.notifyDataSetChanged()
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+        hideNavBtn.visibility = View.GONE
+        hideNavBtn.setOnClickListener {
             fragmentContainer.visibility = View.INVISIBLE
             recyclerViewGroup.visibility = View.VISIBLE
             createnewGrouLinear.visibility = View.VISIBLE
@@ -73,168 +229,59 @@ class MainActivity : AppCompatActivity() {
             }
             addFriendbtn.isClickable = true
             settingsBtn.isClickable = true
-
-        }
-
-        addFriendbtn.setOnClickListener {
-            addFriendbtn.isClickable = false
-            settingsBtn.isClickable = false
-            recyclerViewGroup.visibility = View.INVISIBLE
-            createnewGrouLinear.visibility = View.INVISIBLE
-            val addFragment = AddFriendFragment()
-                replaceFragment(addFragment)
-        }
-
-        var answerTheRequest = findViewById<ImageView>(R.id.acceptRequestBtn)
-        answerTheRequest.setOnClickListener {
-            val intent = Intent(this@MainActivity, AnswerFriendshipRequest::class.java)
-            startActivity(intent)
-        }
-
-
-        settingsBtn.setOnClickListener {
-            addFriendbtn.isClickable = false
-            settingsBtn.isClickable = false
-            recyclerViewGroup.visibility = View.INVISIBLE
-            createnewGrouLinear.visibility = View.INVISIBLE
-            val addFragment = SettingsFragment()
-                replaceFragment(addFragment)
-        }
-
-
-
-        var createGroup = findViewById<ImageView>(R.id.createnewGroup)
-        createGroup.setOnClickListener {
-            showAds()
-        }
-
-        var database = Firebase.database
-
-        var groupRef = database.getReference("Groups")
-
-        var auth = Firebase.auth
-
-        var getGroupInfo = ArrayList<Group>()
-        var hashset = hashSetOf<String>()
-
-        var groupAdapter = ListGroupAdapter(this@MainActivity, getGroupInfo, hashset)
-
-        recyclerViewGroup.layoutManager =
-            LinearLayoutManager(this@MainActivity, RecyclerView.VERTICAL, false)
-        recyclerViewGroup.adapter = groupAdapter
-
-        var getNameOfUser: String? = ""
-        var getGroupNames = HashSet<String>()
-
-        var listener1 = groupRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    for (snap in snapshot.children) {
-                        if (snap.exists()) {
-                            for(realSnap in snap.children) {
-                                var temp = realSnap.getValue(Group::class.java)
-                                if(auth.currentUser?.email == temp?.email){
-                                    getGroupNames.add(temp?.GroupName.toString())
-                                }
-                            }
-                        }
-                    }
-                }
-            groupRef.addValueEventListener(listener2)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
-            }
-        })
-        var checkerHashSet = HashSet<String>()
-        listener2 = groupRef.addValueEventListener(object : ValueEventListener{
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if(snapshot.exists()){
-                    for(snap in snapshot.children){
-                        if(snap.exists()){
-                            for(rsnap in snap.children){
-                                var temp = rsnap.getValue(Group::class.java)
-                                if(temp?.GroupName in getGroupNames){
-                                    getGroupInfo.add(Group(temp?.groupOwner,temp?.GroupName,temp?.name,temp?.surname,temp?.email))
-                                    hashset.add(temp?.GroupName.toString())
-                                }
-                            }
-                        }
-                    }
-                }
-                groupAdapter.notifyDataSetChanged()
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
-            }
-        })
-
-
-        swipeRefreshLayout.setOnRefreshListener {
-            refreshData()
-            hashset.clear()
-            getGroupInfo.clear()
-            groupRef.addValueEventListener(listener1)
-        }
-        Firebase.storage.getReference(auth.currentUser?.email.toString()).downloadUrl
-            .addOnSuccessListener { uri ->
-                Glide.with(this@MainActivity).load(uri).into(settingsBtn)
-            }.addOnFailureListener{
-                Glide.with(this@MainActivity).load(R.drawable.bojackprofile_asset).into(settingsBtn)
-            }
-    }
-
-    private fun refreshData() {
-        var database = Firebase.database
-        var ref = database.getReference("FriendRequest")
-        var auth = FirebaseAuth.getInstance()
-        var counter = 0
-        ref.addListenerForSingleValueEvent(object : ValueEventListener{
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if(snapshot.exists()){
-                    for(snap in snapshot.children){
-                       var a = snap.getValue(SendFriendRequest::class.java)
-                        if(auth.currentUser?.email == a?.whoGetFriendRequest && a?.status == 0){
-                            counter++
-                        }
-                    }
-                updateNotification(counter)
-                }
-                swipeRefreshLayout.isRefreshing = false
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
-            }
-        })
-    }
-    private fun updateNotification(count : Int){
-        var text = findViewById<TextView>(R.id.tellMeHowMuch)
-        if(count > 0){
-            text.visibility = View.VISIBLE
-            text.text = "$count"
-        }else{
-            text.visibility = View.GONE
+            hideNavBtn.visibility = View.GONE
         }
     }
 
-    private fun replaceFragment(fragment : Fragment) {
+    private fun adsProperties(mAdView: AdView?) {
+        mAdView?.adListener = object : AdListener() {
+            override fun onAdClicked() {
+                // Code to be executed when the user clicks on an ad.
+            }
+
+            override fun onAdClosed() {
+                // Code to be executed when the user is about to return
+                // to the app after tapping on an ad.
+            }
+
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                println("başarısız")
+            }
+
+            override fun onAdImpression() {
+                // Code to be executed when an impression is recorded
+                // for an ad.
+            }
+
+            override fun onAdLoaded() {
+                println("başarılı")
+            }
+
+            override fun onAdOpened() {
+                // Code to be executed when an ad opens an overlay that
+                // covers the screen.
+            }
+        }
+    }
+
+    private fun replaceFragment(fragment: Fragment) {
         val fragmentManager = supportFragmentManager
         val fragmentTransaction = fragmentManager.beginTransaction()
-        fragmentTransaction.replace(R.id.fragmentContainer,fragment)
+        fragmentTransaction.replace(R.id.fragmentContainer, fragment)
         var fragmentContainer = findViewById<View>(R.id.fragmentContainer)
         fragmentContainer.visibility = View.VISIBLE
         fragmentTransaction.commit()
     }
 
     override fun onBackPressed() {
-        Toast.makeText(this@MainActivity,"Çıkmak için ana navigasyon butonuna basın.",Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            this@MainActivity, "Çıkmak için ana navigasyon butonuna basın.", Toast.LENGTH_SHORT
+        ).show()
     }
-    private fun showAds(){
-        if(mInterstitialAd != null){
-            mInterstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback(){
+
+    private fun showAds() {
+        if (mInterstitialAd != null) {
+            mInterstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdClicked() {
                     super.onAdClicked()
                 }
@@ -248,7 +295,7 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onAdFailedToShowFullScreenContent(p0: AdError) {
                     super.onAdFailedToShowFullScreenContent(p0)
-                    val intent = Intent(this@MainActivity,CreateGroup::class.java)
+                    val intent = Intent(this@MainActivity, CreateGroup::class.java)
                     startActivity(intent)
                     finish()
                 }
@@ -263,23 +310,27 @@ class MainActivity : AppCompatActivity() {
 
             }
             mInterstitialAd?.show(this@MainActivity)
-        }else{
-            val intent = Intent(this@MainActivity,CreateGroup::class.java)
+        } else {
+            val intent = Intent(this@MainActivity, CreateGroup::class.java)
             startActivity(intent)
             finish()
         }
     }
-    private fun loadAds(){
+
+    private fun loadAds() {
         var adRequest = AdRequest.Builder().build()
 
-        InterstitialAd.load(this@MainActivity,"**********************", adRequest, object : InterstitialAdLoadCallback() {
-            override fun onAdFailedToLoad(adError: LoadAdError) {
-                mInterstitialAd = null
-            }
+        InterstitialAd.load(this@MainActivity,
+            "ca-app-pub-5841174734258930/2721671765",
+            adRequest,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdFailedToLoad(adError: LoadAdError) {
+                    mInterstitialAd = null
+                }
 
-            override fun onAdLoaded(interstitialAd: InterstitialAd) {
-                mInterstitialAd = interstitialAd
-            }
-        })
+                override fun onAdLoaded(interstitialAd: InterstitialAd) {
+                    mInterstitialAd = interstitialAd
+                }
+            })
     }
 }

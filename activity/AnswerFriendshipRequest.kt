@@ -1,3 +1,25 @@
+package com.yucox.splitwise.activity
+
+
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.os.Handler
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.ktx.database
+import com.google.firebase.ktx.Firebase
+import com.R.R.model.SendFriendRequest
+import com.R.R.model.UserInfo
+import com.yucox.splitwise.R
+import com.yucox.splitwise.adapter.ShowRequestAdapter
+
 
 class AnswerFriendshipRequest : AppCompatActivity() {
     private lateinit var runnable: Runnable
@@ -22,6 +44,7 @@ class AnswerFriendshipRequest : AppCompatActivity() {
                     counter = 0
                     for (snap in snapshot.children) {
                         var a = snap.getValue(SendFriendRequest::class.java)
+                        println(a?.whoGetFriendRequest)
                         if (auth.currentUser?.email == a?.whoGetFriendRequest) {
                             if (a?.status == 0) {
                                 counter++
@@ -88,6 +111,7 @@ class AnswerFriendshipRequest : AppCompatActivity() {
                         var getTempValue = snap.getValue(UserInfo::class.java)
                         for(user in tempUserInfo){
                             if(getTempValue?.mail == user.mail){
+                                println("veriler eşleşti")
                                 getRealUserInfo.add(UserInfo(getTempValue?.name,getTempValue?.surname,getTempValue?.mail,getTempValue?.pfpUri))
                             }
                         }
@@ -100,8 +124,11 @@ class AnswerFriendshipRequest : AppCompatActivity() {
                 TODO("Not yet implemented")
             }
         })
+        var back_to_mainactivity = findViewById<ImageView>(R.id.backToMainFromRequest)
+        back_to_mainactivity.setOnClickListener {
+            finish()
+        }
     }
-
     override fun onBackPressed() {
         super.onBackPressed()
         finish()
