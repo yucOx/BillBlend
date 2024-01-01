@@ -52,45 +52,7 @@ class CreateGroup : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.create_group)
         lateinit var mAdView : AdView
-
-        MobileAds.initialize(this) {}
-
-        mAdView = findViewById(R.id.adView2)
-        val adRequest = AdRequest.Builder().build()
-        mAdView.loadAd(adRequest)
-
-        mAdView.adListener = object: AdListener() {
-            override fun onAdClicked() {
-                // Code to be executed when the user clicks on an ad.
-            }
-
-            override fun onAdClosed() {
-                // Code to be executed when the user is about to return
-                // to the app after tapping on an ad.
-            }
-
-            override fun onAdFailedToLoad(adError : LoadAdError) {
-                println("başarısız")
-            }
-
-            override fun onAdImpression() {
-                // Code to be executed when an impression is recorded
-                // for an ad.
-            }
-
-            override fun onAdLoaded() {
-                println("başarılı")
-            }
-
-            override fun onAdOpened() {
-                // Code to be executed when an ad opens an overlay that
-                // covers the screen.
-            }
-        }
-
-
         var auth = FirebaseAuth.getInstance()
-
         database = Firebase.database
         var usersDataRef = database.getReference("UsersData")
         var groupRef = database.getReference("Groups")
