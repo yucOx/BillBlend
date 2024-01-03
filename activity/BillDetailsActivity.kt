@@ -128,7 +128,12 @@ class BillDetailsActivity : AppCompatActivity() {
             }
 
         uploadBillPhotoBtn.setOnClickListener {
-            uploadPhoto(galleryLauncher)
+            uploadBillPhotoBtn.setOnClickListener {
+            if(getBillDetailsArray[0].whoBought == Firebase.auth.currentUser?.email){
+                uploadPhoto(galleryLauncher)
+            } else{
+                Toast.makeText(this@BillDetailsActivity,"Sadece fatura sahibi fotoğraf yükleyebilir veya değiştirebilir.",Toast.LENGTH_LONG).show()
+            }
         }
     }
 
