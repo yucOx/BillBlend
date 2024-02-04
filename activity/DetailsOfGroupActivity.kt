@@ -170,7 +170,7 @@ class DetailsOfGroupActivity : AppCompatActivity() {
                         .downloadUrl.addOnSuccessListener { uri ->
                             i++
                             getPhotoLocation = uri.lastPathSegment
-                            println(uri.lastPathSegment)
+        
                             getPhotosWLocation.add(
                                 PhotoLocationBillName(
                                     a.key,
@@ -258,7 +258,7 @@ class DetailsOfGroupActivity : AppCompatActivity() {
                         .downloadUrl.addOnSuccessListener { uri ->
                             i++
                             getPhotoLocation = uri.lastPathSegment
-                            println(uri.lastPathSegment)
+                         
                             getPhotosWLocation.add(
                                 PhotoLocationBillName(
                                     a.key,
