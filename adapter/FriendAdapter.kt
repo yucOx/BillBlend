@@ -4,6 +4,7 @@ package com.yucox.splitwise.adapter
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -31,11 +32,10 @@ import kotlinx.coroutines.launch
 
 class FriendAdapter(
     private val context: Context,
-    private var friendsMail: HashSet<String>,
     var friendsInfo: ArrayList<UserInfo>
 ) :
     RecyclerView.Adapter<FriendAdapter.ViewHolder>() {
-    var counter = 0
+    val mailAndPicHashMap = HashMap<String, Uri>()
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         var pfp = view.findViewById<CircleImageView>(R.id.pfpUser)
@@ -43,7 +43,7 @@ class FriendAdapter(
         var surname = view.findViewById<TextView>(R.id.surnameUserItem)
         var mail = view.findViewById<TextView>(R.id.mailUserItem)
         var unfriendBtn = view.findViewById<ImageView>(R.id.unfriendBtn)
-        var open_friend_detail = view.findViewById<ConstraintLayout>(R.id.open_friend_detail)
+        var frameConstView = view.findViewById<ConstraintLayout>(R.id.open_friend_detail)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -57,26 +57,28 @@ class FriendAdapter(
             holder.surname.text = friendsInfo[position].surname
             holder.mail.text = friendsInfo[position].mail
         }
-        if (friendsInfo.isNotEmpty()) {
-            if (holder.mail.text == friendsInfo[position].mail) {
-                if (!(context as Activity).isFinishing) {
-                    Firebase.storage.getReference(friendsInfo[position].mail.toString()).downloadUrl
-                        .addOnSuccessListener { uri ->
-                            Glide.with(context).load(uri).into(holder.pfp)
-                        }.addOnFailureListener {
-                            Glide.with(context).load(R.drawable.dostoyevski).into(holder.pfp)
-                        }
-                }
-            }
-        }
-        holder.open_friend_detail.setOnClickListener {
+
+        getAndSetProfilePics(holder.mail,position,holder.pfp)
+
+        goToFriendDetail(holder.frameConstView,position)
+
+        unfriend(holder.unfriendBtn,position)
+
+    }
+
+    private fun goToFriendDetail(openFriendDetail: ConstraintLayout, position: Int) {
+         openFriendDetail.setOnClickListener {
             var intent = Intent(context, ProfileDetailActivity::class.java)
             intent.putExtra("name", friendsInfo[position].name)
             intent.putExtra("surname", friendsInfo[position].surname)
             intent.putExtra("mail", friendsInfo[position].mail)
+            intent.putExtra("mailAndPicHashMap",mailAndPicHashMap)
             context.startActivity(intent)
         }
-        holder.unfriendBtn.setOnClickListener {
+    }
+
+    private fun unfriend(unfriendBtn: ImageView, position: Int) {
+        unfriendBtn.setOnClickListener {
             var builder = AlertDialog.Builder(context)
             builder.setTitle("Arkadaşlıktan çıkarmak istediğinize emin misiniz?")
             builder.setNegativeButton("Evet") { dialog, which ->
@@ -128,6 +130,23 @@ class FriendAdapter(
                     }
                 })
             }.setPositiveButton("Hayır") { dialog, which -> }.show()
+        }
+    }
+
+    private fun getAndSetProfilePics(mail: TextView, position: Int, pfp: CircleImageView) {
+        if (friendsInfo.isNotEmpty()) {
+            if (mail.text == friendsInfo[position].mail) {
+                if (!(context as Activity).isFinishing) {
+                    Firebase.storage.getReference(friendsInfo[position].mail.toString()).downloadUrl
+                        .addOnSuccessListener { uri ->
+                            mailAndPicHashMap.put(friendsInfo[position].mail.toString(),uri)
+                            Glide.with(context).load(uri).into(pfp)
+                        }.addOnFailureListener {
+                            mailAndPicHashMap.put(friendsInfo[position].mail.toString(),Uri.parse(R.drawable.splitwisecat.toString()))
+                            Glide.with(context).load(R.drawable.dostoyevski).into(pfp)
+                        }
+                }
+            }
         }
     }
 

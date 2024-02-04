@@ -3,7 +3,6 @@ package com.yucox.splitwise.activity
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Handler
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -17,34 +16,48 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.R.R.model.SendFriendRequest
 import com.R.R.model.UserInfo
+import com.google.firebase.database.FirebaseDatabase
 import com.yucox.splitwise.R
 import com.yucox.splitwise.adapter.ShowRequestAdapter
 
 
 class AnswerFriendshipRequest : AppCompatActivity() {
-    private lateinit var runnable: Runnable
     private lateinit var adapter : ShowRequestAdapter
     private lateinit var swipeRefreshLayout : SwipeRefreshLayout
+    private var database = FirebaseDatabase.getInstance()
+    private var ref = database.getReference("FriendRequest")
+    private var auth = FirebaseAuth.getInstance()
+    private var userInfo = ArrayList<UserInfo>()
+    private var counter = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.answer_friendship_request_activity)
 
-        var database = Firebase.database
-        var ref = database.getReference("FriendRequest")
-        var auth = FirebaseAuth.getInstance()
+        checkFriendshipRequests()
 
-        var handler = Handler()
-        var requestCounter = findViewById<TextView>(R.id.howmuchRequestAnswerFriendship)
-        var counter = 0
-        var userInfo = ArrayList<UserInfo>()
-        var listener = ref.addValueEventListener(object : ValueEventListener {
+        refresh()
+    }
+
+    private fun refresh() {
+        swipeRefreshLayout = findViewById<SwipeRefreshLayout>(R.id.swipeAnswerFriendship)
+        swipeRefreshLayout.setOnRefreshListener {
+            userInfo.clear()
+            checkFriendshipRequests()
+            adapter.notifyDataSetChanged()
+            swipeRefreshLayout.isRefreshing = false
+        }
+    }
+
+    private fun checkFriendshipRequests() {
+        val requestCounter = findViewById<TextView>(R.id.howmuchRequestAnswerFriendship)
+        ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
                     userInfo.clear()
                     counter = 0
                     for (snap in snapshot.children) {
                         var a = snap.getValue(SendFriendRequest::class.java)
-                        println(a?.whoGetFriendRequest)
                         if (auth.currentUser?.email == a?.whoGetFriendRequest) {
                             if (a?.status == 0) {
                                 counter++
@@ -53,28 +66,17 @@ class AnswerFriendshipRequest : AppCompatActivity() {
                         }
                     }
                 }
-                addUserDetail(userInfo)
-                if(counter > 0) {
-                    requestCounter.text = "$counter yeni arkadaşlık isteği"
-                }else{
+                getUserDetail(userInfo)
+                if(counter <= 0) {
                     requestCounter.text = "Arkadaşlık isteğiniz yok."
                 }
             }
-
             override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
             }
         })
-        listener
-        swipeRefreshLayout = findViewById<SwipeRefreshLayout>(R.id.swipeAnswerFriendship)
-        swipeRefreshLayout.setOnRefreshListener {
-            userInfo.clear()
-            ref.addValueEventListener(listener)
-            adapter.notifyDataSetChanged()
-            swipeRefreshLayout.isRefreshing = false
-        }
     }
-    private fun getData(tempUserInfo : ArrayList<UserInfo>){
+
+    private fun initAdapter(tempUserInfo : ArrayList<UserInfo>){
        var userInfo = ArrayList<UserInfo>()
         for(user in tempUserInfo){
             if(user.name?.isBlank() == true){
@@ -100,7 +102,7 @@ class AnswerFriendshipRequest : AppCompatActivity() {
         recyclerView.adapter = adapter
 
     }
-    private fun addUserDetail(tempUserInfo: ArrayList<UserInfo>) {
+    private fun getUserDetail(tempUserInfo: ArrayList<UserInfo>) {
         var database = Firebase.database
         var ref2 = database.getReference("UsersData")
         var getRealUserInfo = ArrayList<UserInfo>()
@@ -111,17 +113,15 @@ class AnswerFriendshipRequest : AppCompatActivity() {
                         var getTempValue = snap.getValue(UserInfo::class.java)
                         for(user in tempUserInfo){
                             if(getTempValue?.mail == user.mail){
-                                println("veriler eşleşti")
                                 getRealUserInfo.add(UserInfo(getTempValue?.name,getTempValue?.surname,getTempValue?.mail,getTempValue?.pfpUri))
                             }
                         }
                     }
-                    getData(getRealUserInfo)
+                    initAdapter(getRealUserInfo)
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
             }
         })
         var back_to_mainactivity = findViewById<ImageView>(R.id.backToMainFromRequest)

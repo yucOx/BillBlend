@@ -1,15 +1,12 @@
 package com.yucox.splitwise.fragment
 
-import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.Toast
-import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -17,10 +14,9 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.FirebaseStorage
 import com.R.R.model.UserInfo
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.ktx.storage
 import com.yucox.splitwise.R
 import com.yucox.splitwise.adapter.SearchAdapter
@@ -31,28 +27,20 @@ import kotlinx.coroutines.launch
 
 
 class AddFriendFragment : Fragment() {
+    private lateinit var adapter : SearchAdapter
+    private val userList = ArrayList<UserInfo>()
+    private val getUserPhotoWNameArray = ArrayList<GetUserPhotoWithName>()
+    private val database = FirebaseDatabase.getInstance()
+    private val ref = database.getReference("UsersData")
+    private val getTempUsers = ArrayList<UserInfo>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        lateinit var afterDataCheck : Runnable
-        val view =  inflater.inflate(R.layout.add_friend_fragment, container, false)
+        val view =  inflater.inflate(R.layout.fragment_search_friend, container, false)
 
-        /*val cancelBtn = view.findViewById<ImageView>(R.id.cancelButton)
-        cancelBtn.setOnClickListener {
-            parentFragmentManager.popBackStack()
-        }*/
-
-        var profileUri : String? = ""
-        var firebaseStorage = FirebaseStorage.getInstance()
-        var database = Firebase.database
-        var ref = database.getReference("UsersData")
-        var userList = ArrayList<UserInfo>()
-        var getUserPhotoWNameArray = ArrayList<GetUserPhotoWithName>()
-
-
-        var randomPfp = ArrayList<Int>()
+        val randomPfp = ArrayList<Int>()
         randomPfp.add(R.drawable.luffy)
         randomPfp.add(R.drawable.neitzsche)
         randomPfp.add(R.drawable.rick)
@@ -62,13 +50,16 @@ class AddFriendFragment : Fragment() {
         randomPfp.add(R.drawable.einstein)
         randomPfp.add(R.drawable.tesla)
 
-        var adapter = SearchAdapter(requireContext(),userList,getUserPhotoWNameArray)
-        var recyclerView = view.findViewById<RecyclerView>(R.id.listSavedUsers)
-        recyclerView.layoutManager = LinearLayoutManager(context, RecyclerView.VERTICAL,false)
-        recyclerView.adapter = adapter
+        initAdapter(view)
 
-        var searchResult = view.findViewById<EditText>(R.id.searchingAreaFrg)
-        var getTempUsers = ArrayList<UserInfo>()
+        getAllUsers()
+
+        searchFriend(view)
+
+        return view
+    }
+
+    private fun getAllUsers() {
         ref.addListenerForSingleValueEvent(object : ValueEventListener{
             override fun onDataChange(snapshot: DataSnapshot) {
                 userList.clear()
@@ -85,8 +76,13 @@ class AddFriendFragment : Fragment() {
             override fun onCancelled(error: DatabaseError) {
             }
         })
+    }
 
-        var searchBtn = view.findViewById<ImageView>(R.id.searchBtnFrg)
+    private fun searchFriend(view: View) {
+        val recyclerView = view.findViewById<RecyclerView>(R.id.listSavedUsers)
+        val searchResult = view.findViewById<EditText>(R.id.searchingAreaFrg)
+        val searchBtn = view.findViewById<ImageView>(R.id.searchBtnFrg)
+
         searchBtn.setOnClickListener {
             userList.clear()
             getUserPhotoWNameArray.clear()
@@ -117,6 +113,12 @@ class AddFriendFragment : Fragment() {
                 adapter.notifyDataSetChanged()
             }
         }
-        return view
+    }
+
+    private fun initAdapter(view: View) {
+        adapter = SearchAdapter(requireContext(),userList,getUserPhotoWNameArray)
+        val recyclerView = view.findViewById<RecyclerView>(R.id.listSavedUsers)
+        recyclerView.layoutManager = LinearLayoutManager(context, RecyclerView.VERTICAL,false)
+        recyclerView.adapter = adapter
     }
 }

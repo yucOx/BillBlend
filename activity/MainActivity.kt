@@ -5,10 +5,7 @@ import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
-import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.Toast
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,7 +18,6 @@ import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
@@ -30,10 +26,13 @@ import com.google.firebase.ktx.Firebase
 import com.yucox.splitwise.R
 import com.R.R.model.Group
 import com.R.R.model.UserInfo
-import com.google.android.gms.auth.api.Auth
+import com.google.android.material.snackbar.Snackbar
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ktx.getValue
 import com.google.firebase.storage.ktx.storage
 import com.yucox.splitwise.adapter.ListGroupAdapter
+import com.yucox.splitwise.databinding.MainActivityBinding
 import com.yucox.splitwise.fragment.AddFriendFragment
 import com.yucox.splitwise.fragment.SettingsFragment
 import kotlinx.coroutines.CoroutineScope
@@ -41,138 +40,53 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var listener2: ValueEventListener
+    lateinit var mAdView: AdView
     private var mInterstitialAd: InterstitialAd? = null
+    private val auth = FirebaseAuth.getInstance()
+    private var mainInfo = UserInfo()
+    private var pfp: String? = null
+    private val database = FirebaseDatabase.getInstance()
+    private var getGroupInfo = ArrayList<Group>()
+    private val groupRef = database.getReference("Groups")
+    private var groupNamesHash = hashSetOf<String>()
+    private var groupKeysAndNamesHashMap = hashMapOf<String, String>()
+    private lateinit var listGroupAdapter : ListGroupAdapter
+
+    private lateinit var binding: MainActivityBinding
     override fun onCreate(savedInstanceState: Bundle?) {
-        lateinit var mAdView: AdView
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.main_activity)
-        var hideNavBtn = findViewById<ImageView>(R.id.hideNavBtn)
-        var auth = Firebase.auth
+        binding = MainActivityBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        binding.fragmentContainer.visibility = View.INVISIBLE
 
         loadAds()
         MobileAds.initialize(this) {}
-        mAdView = findViewById(R.id.adView)
-        val adRequest = AdRequest.Builder().build()
-        mAdView.loadAd(adRequest)
+        initBanner()
         adsProperties(mAdView)
 
-        var storage = Firebase.storage.getReference(auth.currentUser?.email.toString())
-        var getPfpBeforeGoToSettings: String? = null
-        storage.downloadUrl.addOnSuccessListener { uri ->
-            getPfpBeforeGoToSettings = uri.toString()
-        }
-        var getMainUserInfoForSettings = UserInfo()
-        var userListRef = Firebase.database.getReference("UsersData")
-        userListRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    for (snap in snapshot.children) {
-                        var temp = snap.getValue<com.R.R.model.UserInfo>()
-                        if (temp?.mail == auth.currentUser?.email) {
-                            getMainUserInfoForSettings.name = temp?.name
-                            getMainUserInfoForSettings.surname = temp?.surname
-                            getMainUserInfoForSettings.mail = temp?.mail
-                        }
-                    }
-                }
-            }
+        getAndSetUserInfos()
+        openSettings()
 
-            override fun onCancelled(error: DatabaseError) {
-            }
-        })
+        goToFriendsActivity()
+        checkFriendshipRequest()
+        searchFriend()
 
-        var addFriendbtn = findViewById<ImageView>(R.id.addFriendbtn)
-        var settingsBtn = findViewById<ImageView>(R.id.settingsBtnmainactivity)
+        createNewGroup()
 
-        var recyclerViewGroup = findViewById<RecyclerView>(R.id.GroupRecyclerView)
-        var createnewGrouLinear = findViewById<LinearLayout>(R.id.createnewGroupLinear)
-        var background = findViewById<ConstraintLayout>(R.id.constraintLayoutMain)
-        var fragmentContainer = findViewById<View>(R.id.fragmentContainer)
+        getKeysFromData()
 
-        recyclerViewGroup.visibility = View.VISIBLE
-        createnewGrouLinear.visibility = View.VISIBLE
-        fragmentContainer.visibility = View.INVISIBLE
+        listenOutsideToHideFragment()
+        //hideFragmentWButton()
 
-        var friendsBtn = findViewById<ImageView>(R.id.friendsBtn)
-        friendsBtn.setOnClickListener {
-            val intent = Intent(this@MainActivity, FriendsActivity::class.java)
-            startActivity(intent)
-        }
-
-        background.setOnClickListener {
-            fragmentContainer.visibility = View.INVISIBLE
-            recyclerViewGroup.visibility = View.VISIBLE
-            createnewGrouLinear.visibility = View.VISIBLE
-            hideNavBtn.visibility = View.GONE
-
-            val fragmentManager = supportFragmentManager
-            val fragmentTransaction = fragmentManager.beginTransaction()
-            val fragment = fragmentManager.findFragmentById(R.id.fragmentContainer)
-            if (fragment != null) {
-                fragmentTransaction.remove(fragment)
-                fragmentTransaction.commit()
-            }
-            addFriendbtn.isClickable = true
-            settingsBtn.isClickable = true
-        }
-
-        addFriendbtn.setOnClickListener {
-            addFriendbtn.isClickable = false
-            settingsBtn.isClickable = false
-            recyclerViewGroup.visibility = View.INVISIBLE
-            createnewGrouLinear.visibility = View.INVISIBLE
-            val addFragment = AddFriendFragment()
-            replaceFragment(addFragment)
-            hideNavBtn.visibility = View.VISIBLE
-        }
-
-        var answerTheRequest = findViewById<ImageView>(R.id.acceptRequestBtn)
-        answerTheRequest.setOnClickListener {
-            val intent = Intent(this@MainActivity, AnswerFriendshipRequest::class.java)
-            startActivity(intent)
-        }
-
-        settingsBtn.setOnClickListener {
-            addFriendbtn.isClickable = false
-            settingsBtn.isClickable = false
-            recyclerViewGroup.visibility = View.INVISIBLE
-            createnewGrouLinear.visibility = View.INVISIBLE
-            val addFragment = SettingsFragment()
-            val bundle = Bundle().apply {
-                putString("pfp", getPfpBeforeGoToSettings)
-                putString("name",getMainUserInfoForSettings.name)
-                putString("surname",getMainUserInfoForSettings.surname)
-                putString("mail",getMainUserInfoForSettings.mail)
-
-            }
-            addFragment.arguments = bundle
-            replaceFragment(addFragment)
-            hideNavBtn.visibility = View.VISIBLE
-
-        }
-        var createGroup = findViewById<ImageView>(R.id.createnewGroup)
-        createGroup.setOnClickListener {
-            val intent = Intent(this@MainActivity, CreateGroup::class.java)
-            startActivity(intent)
-            finish()
-        }
-
-        var database = Firebase.database
-        var groupRef = database.getReference("Groups")
-        var getGroupInfo = ArrayList<Group>()
-        var hashset = hashSetOf<String>()
-        var whichGroupUserInSnapKeys = mutableListOf<String>()
+        refreshToData()
 
 
-        var groupAdapter =
-            ListGroupAdapter(this@MainActivity, getGroupInfo, hashset, whichGroupUserInSnapKeys)
+    }
 
-        recyclerViewGroup.layoutManager =
-            LinearLayoutManager(this@MainActivity, RecyclerView.VERTICAL, false)
-        recyclerViewGroup.adapter = groupAdapter
+    private fun updateKeys() {
+        val newgroupKeysAndNamesHashMap = HashMap<String, String>()
+        newgroupKeysAndNamesHashMap.clear()
 
-        var getGroupNames = HashSet<String>()
         groupRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
@@ -181,56 +95,238 @@ class MainActivity : AppCompatActivity() {
                             for (realSnap in snap.children) {
                                 var temp = realSnap.getValue(Group::class.java)
                                 if (auth.currentUser?.email == temp?.email) {
-                                    getGroupNames.add(temp?.GroupName.toString())
-                                    whichGroupUserInSnapKeys.add(snap.key.toString())
+                                    newgroupKeysAndNamesHashMap.put(
+                                        temp?.groupName!!,
+                                        temp?.snapKeyOfGroup!!
+                                    )
                                 }
                             }
                         }
                     }
                 }
+                if (newgroupKeysAndNamesHashMap.size != groupKeysAndNamesHashMap.size) {
+                    binding.swipeRefreshLayout.isRefreshing = false
+                    groupKeysAndNamesHashMap.clear()
+                    groupKeysAndNamesHashMap = newgroupKeysAndNamesHashMap
+                    getGroupInfo.clear()
+                    groupNamesHash.clear()
+
+                    updateGroups()
+                } else {
+                    binding.swipeRefreshLayout.isRefreshing = false
+
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
             }
         })
+    }
+
+    private fun updateGroups() {
         groupRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
                     for (snap in snapshot.children) {
-                        if (snap.key in whichGroupUserInSnapKeys) {
+                        if (snap.key in groupKeysAndNamesHashMap.values) {
                             for (rsnap in snap.children) {
                                 var a = rsnap.getValue(Group::class.java)
                                 getGroupInfo.add(a!!)
-                                hashset.add(a.GroupName.toString())
+                                groupNamesHash.add(a.groupName.toString())
                             }
                         }
                     }
                 }
                 CoroutineScope(Dispatchers.Main).launch {
-                    groupAdapter.notifyDataSetChanged()
+                    binding.swipeRefreshLayout.isRefreshing = false
+                    listGroupAdapter.notifyDataSetChanged()
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
             }
         })
-        hideNavBtn.visibility = View.GONE
-        hideNavBtn.setOnClickListener {
-            fragmentContainer.visibility = View.INVISIBLE
-            recyclerViewGroup.visibility = View.VISIBLE
-            createnewGrouLinear.visibility = View.VISIBLE
+    }
+
+    private fun refreshToData() {
+        binding.swipeRefreshLayout.setOnRefreshListener {
+            updateKeys()
+        }
+    }
+
+
+    private fun checkAndGetGroupNames() {
+        groupRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    for (snap in snapshot.children) {
+                        if (snap.key in groupKeysAndNamesHashMap.values) {
+                            for (rsnap in snap.children) {
+                                var a = rsnap.getValue(Group::class.java)
+                                getGroupInfo.add(a!!)
+                                groupNamesHash.add(a.groupName.toString())
+                            }
+                        }
+                    }
+                }
+                CoroutineScope(Dispatchers.Main).launch {
+                    binding.swipeRefreshLayout.isRefreshing = false
+                    initListGroupRecycler()
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+    }
+
+    private fun initListGroupRecycler() {
+        listGroupAdapter = ListGroupAdapter(
+            this@MainActivity,
+            getGroupInfo,
+            groupNamesHash,
+            groupKeysAndNamesHashMap
+        )
+        binding.listGroupRv.layoutManager =
+            LinearLayoutManager(this@MainActivity, RecyclerView.VERTICAL, false)
+        binding.listGroupRv.adapter = listGroupAdapter
+        listGroupAdapter.notifyDataSetChanged()
+    }
+
+    private fun getKeysFromData() {
+        binding.swipeRefreshLayout.isRefreshing = true
+        groupRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    for (snap in snapshot.children) {
+                        if (snap.exists()) {
+                            for (realSnap in snap.children) {
+                                var temp = realSnap.getValue(Group::class.java)
+                                if (auth.currentUser?.email == temp?.email) {
+                                    groupKeysAndNamesHashMap.put(
+                                        temp?.groupName!!,
+                                        temp?.snapKeyOfGroup!!
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                checkAndGetGroupNames()
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+    }
+
+    private fun createNewGroup() {
+        binding.createNewGroupBtn.setOnClickListener {
+            val intent = Intent(this@MainActivity, CreateGroup::class.java)
+            startActivity(intent)
+            finish()
+        }
+    }
+
+    private fun openSettings() {
+        binding.settingsBtn.setOnClickListener {
+            val rootView = findViewById<View>(android.R.id.content)
+            Snackbar.make(rootView,"Kapatmak için çerçeve dışında herhangi bir yere tıklayın.",Snackbar.LENGTH_LONG).show()
+            binding.searchPeopleBtn.isClickable = false
+            binding.settingsBtn.isClickable = false
+            binding.listGroupRv.visibility = View.INVISIBLE
+            binding.adView.visibility = View.GONE
+            val addFragment = SettingsFragment()
+            val bundle = Bundle().apply {
+                putString("pfp", pfp)
+                putString("name", mainInfo.name)
+                putString("surname", mainInfo.surname)
+                putString("mail", mainInfo.mail)
+
+            }
+            addFragment.arguments = bundle
+            replaceFragment(addFragment)
+            //binding.hideSettingsBtn.visibility = View.VISIBLE
+
+        }
+    }
+
+    private fun listenOutsideToHideFragment() {
+        binding.backgroundConst.setOnClickListener {
+            binding.fragmentContainer.visibility = View.INVISIBLE
+            binding.listGroupRv.visibility = View.VISIBLE
+            binding.adView.visibility = View.VISIBLE
+            //binding.hideSettingsBtn.visibility = View.GONE
+
             val fragmentManager = supportFragmentManager
             val fragmentTransaction = fragmentManager.beginTransaction()
             val fragment = fragmentManager.findFragmentById(R.id.fragmentContainer)
-
             if (fragment != null) {
                 fragmentTransaction.remove(fragment)
                 fragmentTransaction.commit()
             }
-            addFriendbtn.isClickable = true
-            settingsBtn.isClickable = true
-            hideNavBtn.visibility = View.GONE
+            binding.searchPeopleBtn.isClickable = true
+            binding.settingsBtn.isClickable = true
         }
+    }
+
+    private fun searchFriend() {
+        binding.searchPeopleBtn.setOnClickListener {
+            val rootView = findViewById<View>(android.R.id.content)
+            Snackbar.make(rootView,"Kapatmak için çerçeve dışında herhangi bir yere tıklayın.",Snackbar.LENGTH_LONG).show()
+            binding.searchPeopleBtn.isClickable = false
+            binding.settingsBtn.isClickable = false
+            binding.listGroupRv.visibility = View.INVISIBLE
+            val addFragment = AddFriendFragment()
+            replaceFragment(addFragment)
+            //binding.hideSettingsBtn.visibility = View.VISIBLE
+            binding.adView.visibility = View.GONE
+        }
+    }
+
+    private fun checkFriendshipRequest() {
+        binding.checkFriendRequestBtn.setOnClickListener {
+            val intent = Intent(this@MainActivity, AnswerFriendshipRequest::class.java)
+            startActivity(intent)
+        }
+    }
+
+    private fun goToFriendsActivity() {
+        binding.myFriendsBtn.setOnClickListener {
+            val intent = Intent(this@MainActivity, FriendsActivity::class.java)
+            startActivity(intent)
+        }
+    }
+
+    private fun getAndSetUserInfos() {
+        var storage = Firebase.storage.getReference(auth.currentUser?.email.toString())
+        storage.downloadUrl.addOnSuccessListener { uri ->
+            pfp = uri.toString()
+        }
+        var userListRef = Firebase.database.getReference("UsersData")
+        userListRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    for (snap in snapshot.children) {
+                        var temp = snap.getValue<com.R.R.model.UserInfo>()
+                        if (temp?.mail == auth.currentUser?.email) {
+                            mainInfo.name = temp?.name
+                            mainInfo.surname = temp?.surname
+                            mainInfo.mail = temp?.mail
+                        }
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+    }
+
+    private fun initBanner() {
+        mAdView = findViewById(R.id.adView)
+        val adRequest = AdRequest.Builder().build()
+        mAdView.loadAd(adRequest)
     }
 
     private fun adsProperties(mAdView: AdView?) {
@@ -274,9 +370,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        Toast.makeText(
-            this@MainActivity, "Çıkmak için ana navigasyon butonuna basın.", Toast.LENGTH_SHORT
-        ).show()
+        if (binding.fragmentContainer.visibility == View.VISIBLE) {
+            binding.fragmentContainer.visibility = View.INVISIBLE
+            binding.listGroupRv.visibility = View.VISIBLE
+            binding.adView.visibility = View.VISIBLE
+            val fragmentManager = supportFragmentManager
+            val fragmentTransaction = fragmentManager.beginTransaction()
+            val fragment = fragmentManager.findFragmentById(R.id.fragmentContainer)
+
+            if (fragment != null) {
+                fragmentTransaction.remove(fragment)
+                fragmentTransaction.commit()
+            }
+            binding.searchPeopleBtn.isClickable = true
+            binding.settingsBtn.isClickable = true
+        } else {
+            val rootView = findViewById<View>(android.R.id.content)
+            Snackbar.make(
+                rootView, "Çıkmak için home tuşunu kullanın", Snackbar.LENGTH_LONG
+            ).show()
+        }
+
     }
 
     private fun showAds() {
@@ -321,6 +435,7 @@ class MainActivity : AppCompatActivity() {
         var adRequest = AdRequest.Builder().build()
 
         InterstitialAd.load(this@MainActivity,
+            "ca-app-pub-5841174734258930/2721671765",
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdFailedToLoad(adError: LoadAdError) {
@@ -332,4 +447,24 @@ class MainActivity : AppCompatActivity() {
                 }
             })
     }
+
+    /*private fun hideFragmentWButton() {
+        binding.hideSettingsBtn.visibility = View.GONE
+        binding.hideSettingsBtn.setOnClickListener {
+            binding.fragmentContainer.visibility = View.INVISIBLE
+            binding.listGroupRv.visibility = View.VISIBLE
+            binding.adView.visibility = View.VISIBLE
+            val fragmentManager = supportFragmentManager
+            val fragmentTransaction = fragmentManager.beginTransaction()
+            val fragment = fragmentManager.findFragmentById(R.id.fragmentContainer)
+
+            if (fragment != null) {
+                fragmentTransaction.remove(fragment)
+                fragmentTransaction.commit()
+            }
+            binding.searchPeopleBtn.isClickable = true
+            binding.settingsBtn.isClickable = true
+            binding.hideSettingsBtn.visibility = View.GONE
+        }
+    }*/
 }

@@ -4,7 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Handler
 import android.util.Log
 import android.view.View
 import android.widget.AdapterView
@@ -12,8 +11,6 @@ import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.EditText
 import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,20 +19,23 @@ import com.R.R.model.Group
 import com.R.R.model.UserInfo
 import com.R.R.model.WhoHowmuch
 import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import com.yucox.splitwise.R
+import com.yucox.splitwise.databinding.AddBillActivityBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -43,84 +43,35 @@ import kotlinx.coroutines.launch
 class AddBillActivity : AppCompatActivity() {
     private var mInterstitialAd: InterstitialAd? = null
     private final var TAG = "MainActivity"
-    private lateinit var database: FirebaseDatabase
-    var handler = Handler()
+    private val database = FirebaseDatabase.getInstance()
     private lateinit var firstListener: ValueEventListener
     lateinit var refOfBills: DatabaseReference
-
+    private lateinit var binding : AddBillActivityBinding
+    private val groupRef = database.getReference("Groups")
+    private var groupUsers = ArrayList<Group>()
+    private val refGroupUsersInfo = database.getReference("UsersData")
+    private var getonlyNameAndSurname = mutableListOf<String>()
+    private var groupUsersInfo = ArrayList<UserInfo>()
+    private val auth = FirebaseAuth.getInstance()
+    private var specialpriceBorderCounter = 1
+    lateinit var mAdView: AdView
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.add_bill_activity)
-
-        var groupUsers = ArrayList<UserInfo>()
-        var group = ArrayList<Group>()
-
-        var groupName = intent.getStringExtra("groupName")
-        if (groupName != null) {
-            loadAds(groupName)
-        }
-        var snapKeyOfGroup = intent.getStringExtra("snapKeyOfGroup")
-
-        database = Firebase.database
-        var ref = database.getReference("Groups")
+        binding = AddBillActivityBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        
+        val groupName = intent.getStringExtra("groupName")
+        val snapKeyOfGroup = intent.getStringExtra("snapKeyOfGroup")
+        
         refOfBills = database.getReference("Bills")
-        var refgroupusersInfo = database.getReference("UsersData")
-        var auth = Firebase.auth
-        var whoBought: String? = ""
+        binding.progressBar2.visibility = View.GONE
 
-        var getonlyNameAndSurname = mutableListOf<String>()
-
-        var progressBar = findViewById<ProgressBar>(R.id.progressBar2)
-        progressBar.visibility = View.GONE
-
-        fun afterGotGroupData() {
-            refgroupusersInfo.addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    var i = 0
-                    if (snapshot.exists()) {
-                        for (snap in snapshot.children) {
-                            var temp = snap.getValue(UserInfo::class.java)
-                            for (user in group.distinct()) {
-                                if (user?.email == temp?.mail && user.snapKeyOfGroup == snapKeyOfGroup){
-                                    if (user.email != auth.currentUser?.email) {
-                                        getonlyNameAndSurname.add(i, "${user.name} ${user.surname}")
-                                        i++
-                                    } else {
-                                        whoBought = "${user.name} ${user.surname}"
-                                    }
-                                    groupUsers.add(temp!!)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                }
-            })
-        }
-
-        ref.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    for (snap in snapshot.children) {
-                        if (snap.exists()) {
-                            for (realsnap in snap.children) {
-                                var temp = realsnap.getValue(Group::class.java)
-                                if (temp?.snapKeyOfGroup == snapKeyOfGroup) {
-                                    group.add(temp!!)
-                                }
-                            }
-                        }
-                    }
-                }
-                afterGotGroupData()
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-            }
-        })
-
+        MobileAds.initialize(this) {}
+        initBanner()
+        
+        getGroupUsersFromData(snapKeyOfGroup)
+        
         var getSelectedImage: String? = ""
         var galleryLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -138,59 +89,17 @@ class AddBillActivity : AppCompatActivity() {
                     ).show()
                 }
             }
-
-        var photoOfBill = findViewById<LinearLayout>(R.id.photoOfBill_addbillfragment)
-        photoOfBill.setOnClickListener {
+        binding.addPhotoToBillBtn.setOnClickListener {
             val intent = Intent(Intent.ACTION_PICK)
             intent.type = "image/*"
             galleryLauncher.launch(intent)
         }
 
-        var billName = findViewById<TextView>(R.id.bill_name_et)
-        var addPrice = findViewById<TextView>(R.id.price_et)
-        var savetheBill = findViewById<ImageView>(R.id.savetheBill)
+        setSpecialPricePartVisibilityAsUnshown()
+        showSpecialPartArea()
+        addSpecialPriceMore()
+        
 
-        var specialPriceForEveryoneBtn = findViewById<ImageView>(R.id.specialPriceForEveryPersonBtn)
-        var specialpriceLinear = findViewById<LinearLayout>(R.id.specialpriceLinear)
-        var partofSpecialLinear2 = findViewById<LinearLayout>(R.id.partofSpecialLinear2)
-
-        var cake2 = findViewById<LinearLayout>(R.id.cake2)
-        cake2.visibility = View.GONE
-        var cake3 = findViewById<LinearLayout>(R.id.cake3)
-        cake3.visibility = View.GONE
-        var cake4 = findViewById<LinearLayout>(R.id.cake4)
-        cake4.visibility = View.GONE
-        var cake5 = findViewById<LinearLayout>(R.id.cake5)
-        cake5.visibility = View.GONE
-        var cake6 = findViewById<LinearLayout>(R.id.cake6)
-        cake6.visibility = View.GONE
-
-        specialpriceLinear.visibility = View.GONE
-        partofSpecialLinear2.visibility = View.GONE
-        specialPriceForEveryoneBtn.setOnClickListener {
-            if (specialpriceLinear.visibility == View.VISIBLE) {
-                specialpriceLinear.visibility = View.GONE
-            } else {
-                specialpriceLinear.visibility = View.VISIBLE
-            }
-        }
-        var addmoreSpecialPriceBtn = findViewById<ImageView>(R.id.addmoreSpecialPrice)
-        var specialpriceBorderCounter = 1
-        addmoreSpecialPriceBtn.setOnClickListener {
-            specialpriceBorderCounter++
-            if (specialpriceBorderCounter == 2) {
-                cake2.visibility = View.VISIBLE
-            } else if (specialpriceBorderCounter == 3) {
-                cake3.visibility = View.VISIBLE
-            } else if (specialpriceBorderCounter == 4) {
-                partofSpecialLinear2.visibility = View.VISIBLE
-                cake4.visibility = View.VISIBLE
-            } else if (specialpriceBorderCounter == 5) {
-                cake5.visibility = View.VISIBLE
-            } else if (specialpriceBorderCounter == 6) {
-                cake6.visibility = View.VISIBLE
-            }
-        }
         val autoComplete = findViewById<AutoCompleteTextView>(R.id.selectSpecial)
         val autoComplete2 = findViewById<AutoCompleteTextView>(R.id.selectSpecial2)
         val autoComplete3 = findViewById<AutoCompleteTextView>(R.id.selectSpecial3)
@@ -213,7 +122,6 @@ class AddBillActivity : AppCompatActivity() {
         autoComplete6.setAdapter(adapter6)
 
         var checkIsNameRepeat = mutableListOf<String>()
-
         var user1WhoWillPay: String? = ""
         var selectedItem1: Any?
         var user2WhoWillPay: String? = ""
@@ -359,7 +267,7 @@ class AddBillActivity : AppCompatActivity() {
             whowillPaySeperateCounter = 0
             Toast.makeText(this@AddBillActivity, "Temizlendi", Toast.LENGTH_SHORT).show()
         }
-        savetheBill.setOnClickListener {
+        binding.saveBillBtn.setOnClickListener {
             var whoHowmuch = ArrayList<WhoHowmuch>()
 
             val price1 = getHowMuchSpecialPrice.text.toString().toDoubleOrNull() ?: null
@@ -369,7 +277,7 @@ class AddBillActivity : AppCompatActivity() {
             val price5 = getHowMuchSpecialPrice5.text.toString().toDoubleOrNull() ?: null
             val price6 = getHowMuchSpecialPrice6.text.toString().toDoubleOrNull() ?: null
             var howmuch = 0.0
-            if (addPrice.text.toString().isBlank()) {
+            if (binding.priceEt.text.toString().isBlank()) {
                 Toast.makeText(
                     this@AddBillActivity,
                     "Lütfen boş alanları doldurunuz.",
@@ -377,12 +285,12 @@ class AddBillActivity : AppCompatActivity() {
                 ).show()
                 return@setOnClickListener
             }
-            howmuch = addPrice.text.toString().toDouble()
+            howmuch = binding.priceEt.text.toString().toDouble()
             var totalPrice = 0.0
 
             if (user1WhoWillPay?.isBlank() == false && price1 != null) {
                 var cleanName: String? = ""
-                for (user in group) {
+                for (user in groupUsers) {
                     if (user1WhoWillPay == "${user.name} ${user.surname}") {
                         cleanName = user1WhoWillPay
                     }
@@ -396,7 +304,7 @@ class AddBillActivity : AppCompatActivity() {
                             auth.currentUser?.email,
                             price1,
                             howmuch,
-                            billName.text.toString(),
+                            binding.billNameEt.text.toString(),
                             "",
                             snapKeyOfGroup
                         )
@@ -407,7 +315,7 @@ class AddBillActivity : AppCompatActivity() {
             }
             if (user2WhoWillPay?.isBlank() == false && price2 != null) {
                 var cleanName: String? = ""
-                for (user in group) {
+                for (user in groupUsers) {
                     if (user2WhoWillPay == "${user.name} ${user.surname}") {
                         cleanName = user2WhoWillPay
                     }
@@ -421,7 +329,7 @@ class AddBillActivity : AppCompatActivity() {
                             auth.currentUser?.email,
                             price2,
                             howmuch,
-                            billName.text.toString(),
+                            binding.billNameEt.text.toString(),
                             "",
                             snapKeyOfGroup
 
@@ -433,7 +341,7 @@ class AddBillActivity : AppCompatActivity() {
             }
             if (user3WhoWillPay?.isBlank() == false && price3 != null) {
                 var cleanName: String? = ""
-                for (user in group) {
+                for (user in groupUsers) {
                     if (user3WhoWillPay == "${user.name} ${user.surname}") {
                         cleanName = user3WhoWillPay
                     }
@@ -447,7 +355,7 @@ class AddBillActivity : AppCompatActivity() {
                             auth.currentUser?.email,
                             price3,
                             howmuch,
-                            billName.text.toString(),
+                            binding.billNameEt.text.toString(),
                             "",
                             snapKeyOfGroup
                         )
@@ -459,7 +367,7 @@ class AddBillActivity : AppCompatActivity() {
             }
             if (user4WhoWillPay?.isBlank() == false && price4 != null) {
                 var cleanName: String? = ""
-                for (user in group) {
+                for (user in groupUsers) {
                     if (user4WhoWillPay == "${user.name} ${user.surname}") {
                         cleanName = user4WhoWillPay
                     }
@@ -473,7 +381,7 @@ class AddBillActivity : AppCompatActivity() {
                             auth.currentUser?.email,
                             price4,
                             howmuch,
-                            billName.text.toString()
+                            binding.billNameEt.text.toString()
                             ,
                             "",
                             snapKeyOfGroup
@@ -485,7 +393,7 @@ class AddBillActivity : AppCompatActivity() {
             }
             if (user5WhoWillPay?.isBlank() == false && price5 != null) {
                 var cleanName: String? = ""
-                for (user in group) {
+                for (user in groupUsers) {
                     if (user5WhoWillPay == "${user.name} ${user.surname}") {
                         cleanName = user5WhoWillPay
                     }
@@ -499,7 +407,7 @@ class AddBillActivity : AppCompatActivity() {
                             auth.currentUser?.email,
                             price5,
                             howmuch,
-                            billName.text.toString()
+                            binding.billNameEt.text.toString()
                             ,
                             "",
                             snapKeyOfGroup
@@ -511,7 +419,7 @@ class AddBillActivity : AppCompatActivity() {
             }
             if (user6WhoWillPay?.isBlank() == false && price6 != null) {
                 var cleanName: String? = ""
-                for (user in group) {
+                for (user in groupUsers) {
                     if (user6WhoWillPay == "${user.name} ${user.surname}") {
                         cleanName = user6WhoWillPay
                     }
@@ -525,7 +433,7 @@ class AddBillActivity : AppCompatActivity() {
                             auth.currentUser?.email,
                             price6,
                             howmuch,
-                            billName.text.toString(),
+                            binding.billNameEt.text.toString(),
                             "",
                             snapKeyOfGroup
                         )
@@ -538,22 +446,22 @@ class AddBillActivity : AppCompatActivity() {
 
             var ref = database.getReference("Bills")
             var auth = Firebase.auth
-            if (billName.text.toString().isBlank()) {
+            if (binding.billNameEt.text.toString().isBlank()) {
                 Toast.makeText(
                     this@AddBillActivity,
                     "Lütfen fatura ismini giriniz.",
                     Toast.LENGTH_SHORT
                 ).show()
             }
-            if (addPrice.text.toString().isBlank()) {
+            if (binding.priceEt.text.toString().isBlank()) {
                 Toast.makeText(
                     this@AddBillActivity,
                     "Fatura fiyatı boş olmamalıdır.",
                     Toast.LENGTH_SHORT
                 ).show()
             }
-            if (!billName.text.toString().isBlank() && !addPrice.text.toString().isBlank()) {
-                if (addPrice.text.toString().toInt() < 0) {
+            if (!binding.billNameEt.text.toString().isBlank() && !binding.priceEt.text.toString().isBlank()) {
+                if (binding.priceEt.text.toString().toInt() < 0) {
                     Toast.makeText(
                         this@AddBillActivity,
                         "Fatura tutarı 1den küçük olamaz.",
@@ -563,17 +471,17 @@ class AddBillActivity : AppCompatActivity() {
                 }
 
                 var getBillName =
-                    findViewById<TextView>(R.id.bill_name_et)
-                if (groupUsers.size == 1) {
+                    findViewById<TextView>(R.id.billNameEt)
+                if (groupUsersInfo.size == 1) {
                     whoHowmuch.add(
                         WhoHowmuch(
-                            groupUsers[0].name + " " + groupUsers[0].surname,
+                            groupUsersInfo[0].name + " " + groupUsersInfo[0].surname,
                             groupName,
                             0,
                             auth.currentUser?.email,
-                            addPrice.text.toString().toDouble(),
+                            binding.priceEt.text.toString().toDouble(),
                             howmuch,
-                            billName.text.toString(),
+                            binding.billNameEt.text.toString(),
                             "",
                             snapKeyOfGroup
                         )
@@ -588,7 +496,7 @@ class AddBillActivity : AppCompatActivity() {
                             "",
                             0.0,
                             0.0,
-                            billName.text.toString(),
+                            binding.billNameEt.text.toString(),
                             getKey.toString(),
                             snapKeyOfGroup
                         )
@@ -596,8 +504,8 @@ class AddBillActivity : AppCompatActivity() {
                     refOfBills.child(getKey.toString()).setValue(whoHowmuch)
                         .addOnSuccessListener {
                             if (getSelectedImage?.isBlank() == false) {
-                                var storageRef = Firebase.storage.getReference(billName.text.toString())
-                                storageRef.child(getKey.toString())
+                                var storageRef = Firebase.storage.getReference(getKey.toString())
+                                    storageRef
                                     .putFile(Uri.parse(getSelectedImage)).addOnSuccessListener {
                                         CoroutineScope(Dispatchers.Main).launch {
                                             Toast.makeText(
@@ -623,12 +531,12 @@ class AddBillActivity : AppCompatActivity() {
 
                 var cleanandSplitted = howmuch - totalPrice
                 var willHowMuchPay: Double = 0.0
-                if (groupUsers.size - whowillPaySeperateCounter - 1 != 0) {
+                if (groupUsersInfo.size - whowillPaySeperateCounter - 1 != 0) {
                     willHowMuchPay =
-                        cleanandSplitted / ((groupUsers.size + 1) - whowillPaySeperateCounter - 1)
+                        cleanandSplitted / ((groupUsersInfo.size + 1) - whowillPaySeperateCounter - 1)
                 }
                 var getNamesFromData = mutableListOf<String>()
-                for (a in groupUsers) {
+                for (a in groupUsersInfo) {
                     if (a.mail != auth.currentUser?.email) {
                         getNamesFromData.add("${a.name} ${a.surname}")
                     }
@@ -649,7 +557,7 @@ class AddBillActivity : AppCompatActivity() {
                                 auth.currentUser?.email,
                                 willHowMuchPay,
                                 howmuch,
-                                billName.text.toString(),
+                                binding.billNameEt.text.toString(),
                                 "",
                                 snapKeyOfGroup
                             )
@@ -667,7 +575,7 @@ class AddBillActivity : AppCompatActivity() {
                                 auth.currentUser?.email,
                                 willHowMuchPay,
                                 howmuch,
-                                billName.text.toString(),
+                                binding.billNameEt.text.toString(),
                                 "",
                                 snapKeyOfGroup
                             )
@@ -701,17 +609,15 @@ class AddBillActivity : AppCompatActivity() {
                             whoHowmuch.add(
                                 WhoHowmuch(
                                     "", groupName, 2, "",
-                                    0.0, 0.0, billName.text.toString(), getKey.toString(),snapKeyOfGroup
+                                    0.0, 0.0, binding.billNameEt.text.toString(), getKey.toString(),snapKeyOfGroup
                                 )
                             )
                             refOfBills.child(getKey.toString()).setValue(whoHowmuch)
                             if (getSelectedImage?.isBlank() == false) {
                                 CoroutineScope(Dispatchers.Main).launch {
-                                    progressBar.visibility = View.VISIBLE
+                                    binding.progressBar2.visibility = View.VISIBLE
                                 }
-                                var storageRef =
-                                    Firebase.storage.getReference("${billName.text.toString()}")
-                                storageRef.child(getKey.toString())
+                                Firebase.storage.getReference(getKey.toString())
                                     .putFile(Uri.parse(getSelectedImage))
                                     .addOnSuccessListener {
                                         CoroutineScope(Dispatchers.Main).launch {
@@ -720,7 +626,7 @@ class AddBillActivity : AppCompatActivity() {
                                                 "Başarıyla kaydedildi.",
                                                 Toast.LENGTH_SHORT
                                             ).show()
-                                            progressBar.visibility = View.GONE
+                                            binding.progressBar2.visibility = View.GONE
                                             finish()
                                         }
                                     }
@@ -731,7 +637,7 @@ class AddBillActivity : AppCompatActivity() {
                                                 "Fotoğraf kaydedilemedi.",
                                                 Toast.LENGTH_SHORT
                                             ).show()
-                                            progressBar.visibility = View.GONE
+                                            binding.progressBar2.visibility = View.GONE
                                         }
                                     }
                             } else {
@@ -741,7 +647,7 @@ class AddBillActivity : AppCompatActivity() {
                                         "Başarıyla kaydedildi.",
                                         Toast.LENGTH_SHORT
                                     ).show()
-                                    progressBar.visibility = View.GONE
+                                    binding.progressBar2.visibility = View.GONE
                                     finish()
                                 }
                             }
@@ -762,6 +668,97 @@ class AddBillActivity : AppCompatActivity() {
         }
     }
 
+    private fun initBanner() {
+        mAdView = findViewById(R.id.adView4)
+        val adRequest = AdRequest.Builder().build()
+        mAdView.loadAd(adRequest)
+    }
+
+    private fun addSpecialPriceMore() {
+        binding.addmoreSpecialPriceBtn.setOnClickListener {
+            specialpriceBorderCounter++
+            if (specialpriceBorderCounter == 2) {
+                binding.cake2.visibility = View.VISIBLE
+            } else if (specialpriceBorderCounter == 3) {
+                binding.cake3.visibility = View.VISIBLE
+            } else if (specialpriceBorderCounter == 4) {
+                binding.partofSpecialLinear2.visibility = View.VISIBLE
+                binding.cake4.visibility = View.VISIBLE
+            } else if (specialpriceBorderCounter == 5) {
+                binding.cake5.visibility = View.VISIBLE
+            } else if (specialpriceBorderCounter == 6) {
+                binding.cake6.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun showSpecialPartArea() {
+        binding.specialPriceForEveryPersonBtn.setOnClickListener {
+            if (binding.specialpriceLinear.visibility == View.VISIBLE) {
+                binding.specialpriceLinear.visibility = View.GONE
+            } else {
+                binding.specialpriceLinear.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun setSpecialPricePartVisibilityAsUnshown() {
+        binding.cake2.visibility = View.GONE
+        binding.cake3.visibility = View.GONE
+        binding.cake4.visibility = View.GONE
+        binding.cake5.visibility = View.GONE
+        binding.cake6.visibility = View.GONE
+        binding.specialpriceLinear.visibility = View.GONE
+        binding.partofSpecialLinear2.visibility = View.GONE
+    }
+
+
+    private fun getGroupUsersInfo(snapKeyOfGroup: String?) {
+        refGroupUsersInfo.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                var i = 0
+                if (snapshot.exists()) {
+                    for (snap in snapshot.children) {
+                        var temp = snap.getValue(UserInfo::class.java)
+                        for (user in groupUsers.distinct()) {
+                            if (user?.email == temp?.mail && user.snapKeyOfGroup == snapKeyOfGroup){
+                                if (user.email != auth.currentUser?.email) {
+                                    getonlyNameAndSurname.add(i, "${user.name} ${user.surname}")
+                                    i++
+                                }
+                                groupUsersInfo.add(temp!!)
+                            }
+                        }
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+    }
+    private fun getGroupUsersFromData(snapKeyOfGroup: String?) {
+        groupRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    for (snap in snapshot.children) {
+                        if (snap.exists()) {
+                            for (realsnap in snap.children) {
+                                var temp = realsnap.getValue(Group::class.java)
+                                if (temp?.snapKeyOfGroup == snapKeyOfGroup) {
+                                    groupUsers.add(temp!!)
+                                }
+                            }
+                        }
+                    }
+                }
+                getGroupUsersInfo(snapKeyOfGroup)
+            }
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+    }
+
     override fun onDestroy() {
         refOfBills = database.getReference("Bills")
         if (::firstListener.isInitialized)
@@ -773,6 +770,7 @@ class AddBillActivity : AppCompatActivity() {
         var adRequest = AdRequest.Builder().build()
         InterstitialAd.load(
             this,
+            "ca-app-pub-5841174734258930/8173377178",
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdFailedToLoad(adError: LoadAdError) {

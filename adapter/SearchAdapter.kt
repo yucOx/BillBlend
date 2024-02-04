@@ -1,13 +1,10 @@
 package com.yucox.splitwise.adapter
 
-import android.app.Activity
 import android.content.Context
-import android.os.Handler
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
@@ -20,8 +17,7 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.R.R.model.SendFriendRequest
 import com.R.R.model.UserInfo
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.google.firebase.storage.ktx.storage
+import com.google.firebase.database.FirebaseDatabase
 import com.yucox.splitwise.R
 import com.yucox.splitwise.model.GetUserPhotoWithName
 import de.hdodenhof.circleimageview.CircleImageView
@@ -31,7 +27,10 @@ import kotlinx.coroutines.launch
 
 class SearchAdapter(private val context: Context, private var userList: ArrayList<UserInfo>, var getUserPhotoWNameArray : ArrayList<GetUserPhotoWithName>) :
     RecyclerView.Adapter<SearchAdapter.ViewHolder>() {
-    var counter = 0
+    private val auth = FirebaseAuth.getInstance()
+    private val  senderMail = auth.currentUser?.email
+    private val database = FirebaseDatabase.getInstance()
+    private val ref = database.getReference("FriendRequest")
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         var pfp = view.findViewById<CircleImageView>(R.id.profileUserItemr)
@@ -48,24 +47,19 @@ class SearchAdapter(private val context: Context, private var userList: ArrayLis
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = userList[position]
-        var database = Firebase.database
-        var ref = database.getReference("FriendRequest")
 
         holder.name.text = item.name.toString()
         holder.surname.text = item.surname.toString()
         holder.mail.text = item.mail.toString()
-            for(a in getUserPhotoWNameArray){
-                if(a.mail == item.mail ) {
-                    if (!a.photo.isNullOrEmpty())
-                        Glide.with(context).load(a.photo).into(holder.pfp)
-                    else
-                        Glide.with(context).load(R.drawable.splitwisecat).into(holder.pfp)
-                }
-            }
 
-        holder.addFriend.setOnClickListener {
-            var auth = FirebaseAuth.getInstance()
-            var senderMail = auth.currentUser?.email
+        setPhotosAfterSearch(holder.pfp,item)
+
+        sendRequest(holder.addFriend,item)
+
+    }
+
+    private fun sendRequest(addFriend: ImageView, item: UserInfo) {
+        addFriend.setOnClickListener {
             if(senderMail?.isBlank() == false && item?.mail?.isBlank() == false){
                 var sendFriendRequest = SendFriendRequest(senderMail,item.mail,0)
                 ref.addListenerForSingleValueEvent(object : ValueEventListener{
@@ -112,7 +106,17 @@ class SearchAdapter(private val context: Context, private var userList: ArrayLis
             }
 
         }
+    }
 
+    private fun setPhotosAfterSearch(pfp: CircleImageView, item: UserInfo) {
+        for(a in getUserPhotoWNameArray){
+            if(a.mail == item.mail ) {
+                if (!a.photo.isNullOrEmpty())
+                    Glide.with(context).load(a.photo).into(pfp)
+                else
+                    Glide.with(context).load(R.drawable.splitwisecat).into(pfp)
+            }
+        }
     }
 
     override fun getItemCount(): Int {

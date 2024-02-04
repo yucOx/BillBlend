@@ -1,20 +1,15 @@
 package com.yucox.splitwise.activity
 
 
-
 import android.content.Intent
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -27,113 +22,129 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import com.R.R.model.WhoHowmuch
+import com.google.android.gms.ads.MobileAds
+import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.database.DatabaseReference
 import com.yucox.splitwise.R
 import com.yucox.splitwise.adapter.BillDetailsAdapter
+import com.yucox.splitwise.databinding.BillDetailsActivityBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class BillDetailsActivity : AppCompatActivity() {
-    private lateinit var groupName : String
-    private lateinit var adapter : BillDetailsAdapter
+    private lateinit var groupName: String
+    private lateinit var adapter: BillDetailsAdapter
+    private lateinit var binding: BillDetailsActivityBinding
+    private var getBillDetailsArray = ArrayList<WhoHowmuch>()
+
+    private var billImg: String? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.bill_details_activity)
+        binding = BillDetailsActivityBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        MobileAds.initialize(this) {}
 
-        var database = FirebaseDatabase.getInstance()
-        var ref = database.getReference("Bills")
-        var storage = Firebase.storage
+        val database = FirebaseDatabase.getInstance()
+        val ref = database.getReference("Bills")
+        val storage = Firebase.storage
 
         var billName = intent.getStringExtra("billName")
-        var billImg = intent.getStringExtra("billImgUri")
+        billImg = intent.getStringExtra("billImgUri")
         var photoLocation = intent.getStringExtra("photoLocation")
         groupName = intent.getStringExtra("groupName").toString()
         var snapKeyOfGroup = intent.getStringExtra("snapKeyOfGroup")
-        var billNameText = findViewById<TextView>(R.id.nameOfBill)
-        var threedotOptions = findViewById<ConstraintLayout>(R.id.threedot_options_detail_layout)
-        var deleteToBillBtn = findViewById<ImageView>(R.id.deleteGroup)
-        var photoOftheBill = findViewById<ImageView>(R.id.photoOfBill)
-        var threeDotBtn = findViewById<ImageView>(R.id.three_dot_btn)
-        var uploadBillPhotoBtn = findViewById<ImageView>(R.id.add_photo_tobill_btn)
-        var progressBar = findViewById<ProgressBar>(R.id.progressBar3)
-        progressBar.visibility = View.GONE
-        billNameText.text = billName
-        threedotOptions.visibility = View.GONE
-
-        if (billImg?.isBlank() == false) {
-            Glide.with(this@BillDetailsActivity).load(Uri.parse(billImg)).into(photoOftheBill)
-        }else{
-            photoOftheBill.setBackgroundResource(R.drawable.nouploadedphoto)
-        }
-
-        var getBillDetailsArray = ArrayList<WhoHowmuch>()
-        getBillDetailsFromData(ref,getBillDetailsArray,billName,snapKeyOfGroup)
-
-        deleteToBillBtn.setOnClickListener {
-            deleteToBillFun(getBillDetailsArray,photoLocation,snapKeyOfGroup,adapter)
-        }
-
-        threeDotBtn.setOnClickListener{
-            threeDotSettings()
-        }
+        binding.progressBar3.visibility = View.GONE
+        binding.billNameTv.text = billName
+        binding.threedotOptionsLayout.visibility = View.GONE
 
         var galleryLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 if (result.resultCode == AppCompatActivity.RESULT_OK) {
                     val data: Intent? = result.data
-                    if(photoLocation.isNullOrEmpty()){
-                        progressBar.visibility = View.VISIBLE
-                        for(a in getBillDetailsArray){
-                            if(a.whohasPaid == 2){
-                                storage.getReference(billName.toString()).child(a.photoLocation.toString())
-                                    .putFile(data?.data!!)
-                                    .addOnSuccessListener {
-                                        CoroutineScope(Dispatchers.Main).launch {
-                                            Glide.with(this@BillDetailsActivity).load(data.data).into(photoOftheBill)
-                                            progressBar.visibility = View.GONE
-                                        }
-                                    }
-                                    .addOnFailureListener{
-                                        CoroutineScope(Dispatchers.Main).launch {
-                                            progressBar.visibility = View.GONE
-                                        }
-                                    }
-                            }
-                        }
-                    }else {
-                        progressBar.visibility = View.VISIBLE
-                        storage.getReference(photoLocation)
+                    billImg = data?.data.toString()
+                    if (!photoLocation.isNullOrEmpty()) {
+                        binding.progressBar3.visibility = View.VISIBLE
+
+                        storage.getReference(photoLocation.toString())
                             .putFile(data?.data!!)
                             .addOnSuccessListener {
                                 CoroutineScope(Dispatchers.Main).launch {
-                                    Glide.with(this@BillDetailsActivity).load(data.data).into(photoOftheBill)
-                                    progressBar.visibility = View.GONE
+                                    Glide.with(this@BillDetailsActivity)
+                                        .load(data.data)
+                                        .centerCrop()
+                                        .into(binding.photoOfBill)
+                                    binding.progressBar3.visibility = View.GONE
                                 }
                             }
-                            .addOnFailureListener{
+                            .addOnFailureListener {
                                 CoroutineScope(Dispatchers.Main).launch {
-                                    progressBar.visibility = View.GONE
+                                    binding.progressBar3.visibility = View.GONE
                                 }
                             }
                     }
-
-                } else {
-                    Toast.makeText(
-                        this@BillDetailsActivity,
-                        "Hiçbir resim seçilmedi",
-                        Toast.LENGTH_SHORT
-                    ).show()
                 }
             }
 
-        uploadBillPhotoBtn.setOnClickListener {
-            uploadBillPhotoBtn.setOnClickListener {
-            if(getBillDetailsArray[0].whoBought == Firebase.auth.currentUser?.email){
+        goToBack()
+
+        setBillPhoto()
+
+        getBillDetailsFromData(ref, getBillDetailsArray, billName, snapKeyOfGroup, photoLocation)
+
+
+        threeDotSettings()
+
+        zoomOn()
+
+        setInfo()
+
+        binding.uploadPhotoBtn.setOnClickListener {
+            if (getBillDetailsArray.size == 0) {
                 uploadPhoto(galleryLauncher)
-            } else{
-                Toast.makeText(this@BillDetailsActivity,"Sadece fatura sahibi fotoğraf yükleyebilir veya değiştirebilir.",Toast.LENGTH_LONG).show()
+            } else {
+                if (getBillDetailsArray[0].whoBought == Firebase.auth.currentUser?.email) {
+                    uploadPhoto(galleryLauncher)
+                } else {
+                    Toast.makeText(
+                        this@BillDetailsActivity,
+                        "Sadece fatura sahibi fotoğraf yükleyebilir veya değiştirebilir.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
+        }
+    }
+
+    private fun setInfo() {
+        val rootView: View = findViewById(android.R.id.content)
+        Snackbar.make(rootView, "Resmi büyütmek için üzerine tıklayın", Snackbar.LENGTH_LONG).show()
+    }
+
+    private fun zoomOn() {
+        binding.photoOfBill.setOnClickListener {
+            val intent = Intent(this@BillDetailsActivity, BigScreenView::class.java)
+            intent.putExtra("img", billImg)
+            startActivity(intent)
+        }
+    }
+
+    private fun goToBack() {
+        binding.backBtn.setOnClickListener {
+            val intent = Intent(this@BillDetailsActivity, DetailsOfGroupActivity::class.java)
+            intent.putExtra("GroupName", groupName)
+            finish()
+        }
+    }
+
+    private fun setBillPhoto() {
+        if (billImg?.isBlank() == false) {
+            println("foto bos degil")
+            Glide.with(this@BillDetailsActivity).load(Uri.parse(billImg)).centerCrop()
+                .into(binding.photoOfBill)
+        } else {
+            Glide.with(this@BillDetailsActivity).load(R.drawable.nouploadedphoto).centerCrop()
+                .into(binding.photoOfBill)
         }
     }
 
@@ -149,7 +160,8 @@ class BillDetailsActivity : AppCompatActivity() {
         ref: DatabaseReference,
         getBillDetails: ArrayList<WhoHowmuch>,
         billName: String?,
-        snapKeyOfGroup: String?
+        snapKeyOfGroup: String?,
+        photoLocation: String?
     ) {
         ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -167,6 +179,7 @@ class BillDetailsActivity : AppCompatActivity() {
                 CoroutineScope(Dispatchers.Main).launch {
                     initAdapter(getBillDetails)
                     adapter.notifyDataSetChanged()
+                    deleteToBill(getBillDetailsArray, photoLocation, snapKeyOfGroup, adapter)
                 }
             }
 
@@ -175,38 +188,40 @@ class BillDetailsActivity : AppCompatActivity() {
         })
     }
 
-    private fun deleteToBillFun(
+    private fun deleteToBill(
         getBillDetails: ArrayList<WhoHowmuch>,
         photoLocation: String?,
         snapKeyOfGroup: String?,
         adapter: BillDetailsAdapter
     ) {
-        if (Firebase.auth.currentUser?.email == getBillDetails[0].whoBought) {
-            var builder = AlertDialog.Builder(this@BillDetailsActivity)
-            builder.setTitle("Faturayı silmek istediğinizden emin misiniz?")
-            builder.setNegativeButton("Evet") { dialog, which ->
-                var dataRef = Firebase.database.getReference("Bills")
-                dataRef.addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        if (snapshot.exists()) {
-                            for (snap in snapshot.children) {
-                                for (rsnap in snap.children) {
-                                    var temp = rsnap.getValue(WhoHowmuch::class.java)
-                                    if (temp?.billname == getBillDetails[0].billname && temp?.groupName == groupName && temp.snapKeyOfGroup == snapKeyOfGroup) {
-                                        var uniqueId = snap.key.toString()
-                                        dataRef.child(uniqueId).removeValue()
-                                            .addOnSuccessListener {
-                                                CoroutineScope(Dispatchers.Main).launch {
-                                                    Toast.makeText(
-                                                        this@BillDetailsActivity,
-                                                        "Fatura başarıyla silindi!",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
+        binding.deleteToBillBtn.setOnClickListener {
+
+            if (Firebase.auth.currentUser?.email == getBillDetails[0].whoBought) {
+                var builder = AlertDialog.Builder(this@BillDetailsActivity)
+                builder.setTitle("Faturayı silmek istediğinizden emin misiniz?")
+                builder.setNegativeButton("Evet") { dialog, which ->
+                    var dataRef = Firebase.database.getReference("Bills")
+                    dataRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                        override fun onDataChange(snapshot: DataSnapshot) {
+                            if (snapshot.exists()) {
+                                for (snap in snapshot.children) {
+                                    for (rsnap in snap.children) {
+                                        var temp = rsnap.getValue(WhoHowmuch::class.java)
+                                        if (temp?.billname == getBillDetails[0].billname && temp?.groupName == groupName && temp.snapKeyOfGroup == snapKeyOfGroup) {
+                                            var uniqueId = snap.key.toString()
+                                            dataRef.child(uniqueId).removeValue()
+                                                .addOnSuccessListener {
+                                                    CoroutineScope(Dispatchers.Main).launch {
+                                                        Toast.makeText(
+                                                            this@BillDetailsActivity,
+                                                            "Fatura başarıyla silindi!",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    }
                                                 }
-                                            }
-                                        for (a in getBillDetails) {
-                                            if(!photoLocation.isNullOrEmpty()){
-                                                var storage = Firebase.storage.getReference(photoLocation.toString())
+                                            if (!photoLocation.isNullOrEmpty()) {
+                                                var storage =
+                                                    Firebase.storage.getReference(photoLocation.toString())
                                                 storage.delete().addOnSuccessListener {
                                                     if (!isFinishing()) {
                                                         finish()
@@ -216,7 +231,7 @@ class BillDetailsActivity : AppCompatActivity() {
                                                         finish()
                                                     }
                                                 }
-                                            }else{
+                                            } else {
                                                 if (!isFinishing) {
                                                     finish()
                                                 }
@@ -225,25 +240,25 @@ class BillDetailsActivity : AppCompatActivity() {
                                     }
                                 }
                             }
+                            getBillDetails.clear()
+                            CoroutineScope(Dispatchers.Main).launch {
+                                this@BillDetailsActivity.adapter.notifyDataSetChanged()
+                            }
                         }
-                        getBillDetails.clear()
-                        CoroutineScope(Dispatchers.Main).launch {
-                            this@BillDetailsActivity.adapter.notifyDataSetChanged()
+
+                        override fun onCancelled(error: DatabaseError) {
                         }
-                    }
+                    })
+                }.setPositiveButton("Hayır") { dialog, which ->
 
-                    override fun onCancelled(error: DatabaseError) {
-                    }
-                })
-            }.setPositiveButton("Hayır") { dialog, which ->
-
-            }.show()
-        } else {
-            Toast.makeText(
-                this@BillDetailsActivity,
-                "Sadece fatura sahibi, faturayı silebilir.",
-                Toast.LENGTH_SHORT
-            ).show()
+                }.show()
+            } else {
+                Toast.makeText(
+                    this@BillDetailsActivity,
+                    "Sadece fatura sahibi, faturayı silebilir.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 
@@ -254,19 +269,29 @@ class BillDetailsActivity : AppCompatActivity() {
     }
 
     private fun threeDotSettings() {
-        var threedotOptions = findViewById<ConstraintLayout>(R.id.threedot_options_detail_layout)
-        if(threedotOptions.visibility == View.GONE){
-            threedotOptions.visibility = View.VISIBLE
-        }else{
-            threedotOptions.visibility = View.GONE
+        binding.threeDotBtn.setOnClickListener {
+            if (binding.threedotOptionsLayout.visibility == View.GONE) {
+                binding.threedotOptionsLayout.visibility = View.VISIBLE
+                binding.billNameTv.visibility = View.GONE
+                println("burada")
+            } else {
+                binding.threedotOptionsLayout.visibility = View.GONE
+                binding.billNameTv.visibility = View.VISIBLE
+                println("burada")
+
+            }
         }
     }
 
     override fun onBackPressed() {
-        val intent = Intent(this@BillDetailsActivity,DetailsOfGroupActivity::class.java)
-        intent.putExtra("GroupName",groupName)
+        val intent = Intent(this@BillDetailsActivity, DetailsOfGroupActivity::class.java)
+        intent.putExtra("GroupName", groupName)
         finish()
     }
 }
+
+
+
+
 
 
