@@ -435,7 +435,7 @@ class MainActivity : AppCompatActivity() {
         var adRequest = AdRequest.Builder().build()
 
         InterstitialAd.load(this@MainActivity,
-            "ca-app-pub-5841174734258930/2721671765",
+            "ca-app-pub-5",
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdFailedToLoad(adError: LoadAdError) {
