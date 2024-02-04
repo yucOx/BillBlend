@@ -487,7 +487,6 @@ class AddBillActivity : AppCompatActivity() {
                         )
                     )
                     var getKey = refOfBills.push().key
-                    println(getKey.toString())
                     whoHowmuch.add(
                         WhoHowmuch(
                             "",
