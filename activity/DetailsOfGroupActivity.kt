@@ -506,7 +506,6 @@ class DetailsOfGroupActivity : AppCompatActivity() {
         var adRequest = AdRequest.Builder().build()
         InterstitialAd.load(
             this,
-            "ca-app-pub-5841174734258930/8173377178",
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdFailedToLoad(adError: LoadAdError) {
