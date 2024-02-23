@@ -19,6 +19,7 @@ class ListPfpAdapter(
     RecyclerView.Adapter<ListPfpAdapter.ViewHolder>() {
     private val storage = FirebaseStorage.getInstance()
 
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view =
             LayoutInflater.from(parent.context).inflate(R.layout.list_pfp_item, parent, false)

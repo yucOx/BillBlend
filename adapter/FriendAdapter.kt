@@ -22,6 +22,7 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import com.R.R.model.UserInfo
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.ktx.auth
 import com.yucox.splitwise.R
 import com.yucox.splitwise.activity.ProfileDetailActivity
@@ -79,7 +80,7 @@ class FriendAdapter(
 
     private fun unfriend(unfriendBtn: ImageView, position: Int) {
         unfriendBtn.setOnClickListener {
-            var builder = AlertDialog.Builder(context)
+            var builder = MaterialAlertDialogBuilder(context)
             builder.setTitle("Arkadaşlıktan çıkarmak istediğinize emin misiniz?")
             builder.setNegativeButton("Evet") { dialog, which ->
                 var ref = Firebase.database.getReference("FriendRequest")

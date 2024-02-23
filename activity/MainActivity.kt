@@ -50,14 +50,13 @@ class MainActivity : AppCompatActivity() {
     private val groupRef = database.getReference("Groups")
     private var groupNamesHash = hashSetOf<String>()
     private var groupKeysAndNamesHashMap = hashMapOf<String, String>()
-    private lateinit var listGroupAdapter : ListGroupAdapter
+    private lateinit var listGroupAdapter: ListGroupAdapter
 
     private lateinit var binding: MainActivityBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = MainActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        binding.fragmentContainer.visibility = View.INVISIBLE
 
         loadAds()
         MobileAds.initialize(this) {}
@@ -231,7 +230,11 @@ class MainActivity : AppCompatActivity() {
     private fun openSettings() {
         binding.settingsBtn.setOnClickListener {
             val rootView = findViewById<View>(android.R.id.content)
-            Snackbar.make(rootView,"Kapatmak için çerçeve dışında herhangi bir yere tıklayın.",Snackbar.LENGTH_LONG).show()
+            Snackbar.make(
+                rootView,
+                "Kapatmak için çerçeve dışında herhangi bir yere tıklayın.",
+                Snackbar.LENGTH_SHORT
+            ).show()
             binding.searchPeopleBtn.isClickable = false
             binding.settingsBtn.isClickable = false
             binding.listGroupRv.visibility = View.INVISIBLE
@@ -273,7 +276,11 @@ class MainActivity : AppCompatActivity() {
     private fun searchFriend() {
         binding.searchPeopleBtn.setOnClickListener {
             val rootView = findViewById<View>(android.R.id.content)
-            Snackbar.make(rootView,"Kapatmak için çerçeve dışında herhangi bir yere tıklayın.",Snackbar.LENGTH_LONG).show()
+            Snackbar.make(
+                rootView,
+                "Kapatmak için çerçeve dışında herhangi bir yere tıklayın.",
+                Snackbar.LENGTH_SHORT
+            ).show()
             binding.searchPeopleBtn.isClickable = false
             binding.settingsBtn.isClickable = false
             binding.listGroupRv.visibility = View.INVISIBLE
@@ -435,7 +442,7 @@ class MainActivity : AppCompatActivity() {
         var adRequest = AdRequest.Builder().build()
 
         InterstitialAd.load(this@MainActivity,
-            "ca-app-pub-5",
+            "ca-app-pub-5841174734258930/2721671765",
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdFailedToLoad(adError: LoadAdError) {

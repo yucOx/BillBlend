@@ -4,6 +4,7 @@ package com.yucox.splitwise.adapter
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -41,6 +42,7 @@ class BillDetailsAdapter(
     val getUserDetail = ArrayList<UserInfo>()
     var getMainUserName: String? = ""
     val nameInUserList = mutableListOf<String>()
+    val mailAndPicHashMap = HashMap<String,Uri>()
 
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -60,6 +62,7 @@ class BillDetailsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = whoMustPay[position]
+        println(whoMustPay.size)
         if (whoMustPay[position].whohasPaid == 2)
             holder.showOrNot.visibility = View.GONE
 
@@ -100,9 +103,11 @@ class BillDetailsAdapter(
                 for (user in getUserDetail) {
                     if (item.whoWillPay == "${user.name} ${user.surname}") {
                         firebaseStorage.getReference(user.mail.toString()).downloadUrl.addOnSuccessListener { uri ->
+                            mailAndPicHashMap.put(user.mail.toString(),uri)
                             if (!(context as Activity).isFinishing)
                                 Glide.with(context).load(uri.toString()).into(userPfp)
                         }.addOnFailureListener {
+                            mailAndPicHashMap.put(user.mail.toString(),Uri.parse(R.drawable.splitwisecat.toString()))
                             if (!(context as Activity).isFinishing)
                                 Glide.with(context).load(R.drawable.luffy).into(userPfp)
                         }
@@ -210,7 +215,12 @@ class BillDetailsAdapter(
                             intent.putExtra("name", intentName)
                             intent.putExtra("surname", intentSurname)
                             intent.putExtra("mail", intentMail)
-                            context.startActivity(intent)
+                            intent.putExtra("mailAndPicHashMap",mailAndPicHashMap)
+                            if(mailAndPicHashMap.isNullOrEmpty()){
+                                Toast.makeText(context,"Bir hata ile karşılaşıldı, lütfen daha sonra tekrar deneyin",Toast.LENGTH_SHORT).show()
+                            }else {
+                                context.startActivity(intent)
+                            }
                         }
                     }
                 }

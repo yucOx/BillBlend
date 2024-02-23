@@ -27,6 +27,7 @@ class ListUserAdapter(
     private val groupuserList: ArrayList<Group>,
     private val randomPfp: MutableList<Int>
 ) : RecyclerView.Adapter<ListUserAdapter.ViewHolder>() {
+    val mailAndPicHashMap = HashMap<String, Uri>()
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         var nameInfo = view.findViewById<TextView>(R.id.showName_profileimageshow)
@@ -43,7 +44,6 @@ class ListUserAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val cleanuserList = userList.distinct()
         val userDetails = cleanuserList[position]
-        val mailAndPicHashMap = HashMap<String, Uri>()
 
         holder.nameInfo.text = "${userDetails.name}"
 

@@ -33,7 +33,6 @@ class FriendsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = FriendsActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        binding.friendStatusTv.visibility = View.GONE
         binding.swipeRefreshFr.isRefreshing = false
 
         getMailOfFriends()

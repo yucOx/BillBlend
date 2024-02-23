@@ -45,7 +45,6 @@ class DetailsOfGroupActivity : AppCompatActivity() {
     private var auth = FirebaseAuth.getInstance()
     private var database = FirebaseDatabase.getInstance()
     private lateinit var listBillsAdapter: ListBillsAdapter
-    var billNames = ArrayList<String>()
     private var mInterstitialAd: InterstitialAd? = null
     private final var TAG = "MainActivity"
     var getPhotoLocation: String? = ""
@@ -59,9 +58,9 @@ class DetailsOfGroupActivity : AppCompatActivity() {
     lateinit var mAdView: AdView
     private lateinit var listUserAdapter: ListUserAdapter
     private var billNamesHash = hashSetOf<String>()
-    private var getPhotosWLocation = ArrayList<PhotoLocationBillName>()
     private var snapKeyOfGroup: String? = null
     private var photoLocationHashMap = HashMap<String, String>()
+    private val billsArray = ArrayList<WhoHowmuch>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +73,6 @@ class DetailsOfGroupActivity : AppCompatActivity() {
         groupName = intent.getStringExtra("GroupName")
         snapKeyOfGroup = intent.getStringExtra("snapKeyOfGroup")
         binding.groupNameTv.text = groupName
-        binding.threedotOptionsDetailLayout2.visibility = View.GONE
 
         getGroupUsersFromData()
 
@@ -105,12 +103,12 @@ class DetailsOfGroupActivity : AppCompatActivity() {
             if (group[0].groupOwner == Firebase.auth.currentUser?.email) {
                 var builder = MaterialAlertDialogBuilder(this@DetailsOfGroupActivity)
                 builder.setTitle("Grubu silmek istediğinze emin misiniz?")
-                    .setNegativeButton("Evet, son kararım!") { dialog, which ->
+                    .setNegativeButton("Evetx") { dialog, which ->
                         refForDel.child(snapKeyOfGroup.toString()).removeValue()
                             .addOnSuccessListener {
                                 deletePhotoOfBills(snapKeyOfGroup)
                             }
-                    }.setPositiveButton("Hayır, sadece elim çarptı..") { dialog, which ->
+                    }.setPositiveButton("İptal") { dialog, which ->
                     }.show()
             } else {
                 Toast.makeText(
@@ -125,10 +123,9 @@ class DetailsOfGroupActivity : AppCompatActivity() {
 
     private fun updateData() {
         binding.refreshMe.isRefreshing = true
-        billNames.clear()
-        getPhotosWLocation.clear()
         photoLocationHashMap.clear()
         billNamesHash.clear()
+        billsArray.clear()
 
         refForBills.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -138,39 +135,39 @@ class DetailsOfGroupActivity : AppCompatActivity() {
                             for (realSnap in snap.children) {
                                 var temp = realSnap.getValue(WhoHowmuch::class.java)
                                 if (temp?.groupName == groupName && temp?.snapKeyOfGroup == snapKeyOfGroup) {
-                                    billNamesHash.add(temp?.billname.toString())
                                     if (temp?.whohasPaid == 2) {
                                         photoLocationHashMap.put(
                                             temp?.billname.toString(),
                                             temp?.photoLocation.toString()
                                         )
                                     }
-                                    for (a in billNamesHash) {
-                                        if (a in billNames) {
-                                            continue
-                                        } else if (!(a in billNames) && !a.isBlank()) {
-                                            billNames.add(a)
-                                        }
+                                    if (temp?.billname in billNamesHash == false) {
+                                        billsArray.add(temp!!)
+                                        billNamesHash.add(temp?.billname.toString())
                                     }
                                 }
                             }
                         }
                     }
                 }
-                if (billNames.size == 0) {
+                if (billsArray.size == 0) {
                     val rootView = findViewById<View>(android.R.id.content)
                     Snackbar.make(rootView, "Mevcut fatura bulunamadı", Snackbar.LENGTH_LONG).show()
                     binding.refreshMe.isRefreshing = false
                     binding.showBillNamesRecycler.removeAllViews()
+                    binding.refreshMe.isRefreshing = false
+                } else {
+                    initListBillsRecycler()
+                    binding.refreshMe.isRefreshing = false
                 }
 
-                var i = 0
+                /*var i = 0
                 for (a in photoLocationHashMap) {
                     Firebase.storage.getReference(a.value)
                         .downloadUrl.addOnSuccessListener { uri ->
                             i++
                             getPhotoLocation = uri.lastPathSegment
-        
+                            println(uri.lastPathSegment)
                             getPhotosWLocation.add(
                                 PhotoLocationBillName(
                                     a.key,
@@ -208,7 +205,7 @@ class DetailsOfGroupActivity : AppCompatActivity() {
                                 }
                             }
                         }
-                }
+                }*/
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -226,39 +223,39 @@ class DetailsOfGroupActivity : AppCompatActivity() {
                             for (realSnap in snap.children) {
                                 var temp = realSnap.getValue(WhoHowmuch::class.java)
                                 if (temp?.groupName == groupName && temp?.snapKeyOfGroup == snapKeyOfGroup) {
-                                    billNamesHash.add(temp?.billname.toString())
                                     if (temp?.whohasPaid == 2) {
                                         photoLocationHashMap.put(
                                             temp?.billname.toString(),
                                             temp?.photoLocation.toString()
                                         )
                                     }
-                                    for (a in billNamesHash) {
-                                        if (a in billNames) {
-                                            continue
-                                        } else if (!(a in billNames) && !a.isBlank()) {
-                                            billNames.add(a)
-                                        }
+                                    if (temp?.billname in billNamesHash == false) {
+                                        billsArray.add(temp!!)
+                                        billNamesHash.add(temp?.billname.toString())
                                     }
                                 }
                             }
                         }
                     }
                 }
-                if (billNames.size == 0) {
+                if (billsArray.size == 0) {
                     binding.refreshMe.isRefreshing = false
                     val rootView = findViewById<View>(android.R.id.content)
                     Snackbar.make(rootView, "Mevcut fatura bulunamadı", Snackbar.LENGTH_LONG).show()
                     binding.showBillNamesRecycler.removeAllViews()
+                    binding.refreshMe.isRefreshing = false
+                } else {
+                    initListBillsRecycler()
+                    binding.refreshMe.isRefreshing = false
                 }
 
-                var i = 0
+                /*var i = 0
                 for (a in photoLocationHashMap) {
                     Firebase.storage.getReference(a.value)
                         .downloadUrl.addOnSuccessListener { uri ->
                             i++
                             getPhotoLocation = uri.lastPathSegment
-                         
+                            println(uri.lastPathSegment)
                             getPhotosWLocation.add(
                                 PhotoLocationBillName(
                                     a.key,
@@ -288,7 +285,7 @@ class DetailsOfGroupActivity : AppCompatActivity() {
                                 }
                             }
                         }
-                }
+                }*/
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -299,11 +296,8 @@ class DetailsOfGroupActivity : AppCompatActivity() {
     private fun initListBillsRecycler() {
         listBillsAdapter = ListBillsAdapter(
             this,
-            billNames,
-            groupName,
-            getPhotosWLocation,
-            snapKeyOfGroup,
-            photoLocationHashMap
+            photoLocationHashMap,
+            billsArray
         )
         binding.showBillNamesRecycler.layoutManager =
             LinearLayoutManager(this, RecyclerView.VERTICAL, false)
@@ -396,7 +390,7 @@ class DetailsOfGroupActivity : AppCompatActivity() {
         randomPfp.add(R.drawable.neitzsche)
         randomPfp.add(R.drawable.rick)
 
-        listUserAdapter = ListUserAdapter(this@DetailsOfGroupActivity, groupUsers, group,randomPfp)
+        listUserAdapter = ListUserAdapter(this@DetailsOfGroupActivity, groupUsers, group, randomPfp)
         var recyclerView = findViewById<RecyclerView>(R.id.usersOfGroupRecycler)
         recyclerView.layoutManager =
             LinearLayoutManager(this@DetailsOfGroupActivity, RecyclerView.HORIZONTAL, false)
@@ -512,7 +506,7 @@ class DetailsOfGroupActivity : AppCompatActivity() {
         var adRequest = AdRequest.Builder().build()
         InterstitialAd.load(
             this,
-            "ca-app-pub-5",
+            "ca-app-pub-5841174734258930/8173377178",
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdFailedToLoad(adError: LoadAdError) {

@@ -23,8 +23,6 @@ class ListGroupAdapter(
     var groupKeyAndNameHashMap: HashMap<String, String>
 ) :
     RecyclerView.Adapter<ListGroupAdapter.ViewHolder>() {
-    val mailAndPhotoHashMap = HashMap<String, Uri?>()
-    private val storage = FirebaseStorage.getInstance()
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val usersInGroup = view.findViewById<TextView>(R.id.usersInGroup)

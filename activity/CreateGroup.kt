@@ -43,9 +43,9 @@ class CreateGroup : AppCompatActivity() {
     private lateinit var adapter6 : ArrayAdapter<String>
     private lateinit var adapter7 : ArrayAdapter<String>
     private lateinit var adapter8 : ArrayAdapter<String>
-    var getNamendSurnameFromData = mutableListOf<String>()
-    var getMails = ArrayList<GetMails>()
-    var allFriendsInfo = ArrayList<com.R.R.model.UserInfo>()
+    val getNamendSurnameFromData = mutableListOf<String>()
+    val getMails = ArrayList<GetMails>()
+    val allFriendsInfo = ArrayList<com.R.R.model.UserInfo>()
     lateinit var mAdView : AdView
     private val auth = FirebaseAuth.getInstance()
     private var isThatRepeat = HashSet<String>()
@@ -95,11 +95,11 @@ class CreateGroup : AppCompatActivity() {
                             for(snap in snapshot.children){
                                 var temp = snap.getValue(com.R.R.model.UserInfo::class.java)
                                 if(auth.currentUser?.email.toString() == temp?.mail){
-                                    getGroupOwnerInfo.groupOwner = temp?.mail
+                                    getGroupOwnerInfo.groupOwner = temp.mail
                                     getGroupOwnerInfo.groupName = groupName
-                                    getGroupOwnerInfo.name = temp?.name
-                                    getGroupOwnerInfo.surname = temp?.surname
-                                    getGroupOwnerInfo.email = temp?.mail
+                                    getGroupOwnerInfo.name = temp.name
+                                    getGroupOwnerInfo.surname = temp.surname
+                                    getGroupOwnerInfo.email = temp.mail
                                     getGroupOwnerInfo.snapKeyOfGroup = groupRefKey
                                 }
                                 clean_group_arraylist.add(getGroupOwnerInfo)
@@ -151,10 +151,6 @@ class CreateGroup : AppCompatActivity() {
     }
 
     private fun addMoreUser() {
-        binding.secondSelectLinear.visibility = View.GONE
-        binding.thirdSelectLinear.visibility = View.GONE
-        binding.addMoreBtn3.visibility = View.GONE
-
         binding.addMoreBtn2.setOnClickListener {
             binding.secondSelectLinear.visibility = View.VISIBLE
             binding.addMoreBtn2.visibility = View.GONE

@@ -51,12 +51,11 @@ class BillDetailsActivity : AppCompatActivity() {
 
         var billName = intent.getStringExtra("billName")
         billImg = intent.getStringExtra("billImgUri")
+        println(billImg)
         var photoLocation = intent.getStringExtra("photoLocation")
         groupName = intent.getStringExtra("groupName").toString()
         var snapKeyOfGroup = intent.getStringExtra("snapKeyOfGroup")
-        binding.progressBar3.visibility = View.GONE
         binding.billNameTv.text = billName
-        binding.threedotOptionsLayout.visibility = View.GONE
 
         var galleryLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -139,6 +138,7 @@ class BillDetailsActivity : AppCompatActivity() {
 
     private fun setBillPhoto() {
         if (billImg?.isBlank() == false) {
+            println("foto bos degil")
             Glide.with(this@BillDetailsActivity).load(Uri.parse(billImg)).centerCrop()
                 .into(binding.photoOfBill)
         } else {
@@ -272,9 +272,11 @@ class BillDetailsActivity : AppCompatActivity() {
             if (binding.threedotOptionsLayout.visibility == View.GONE) {
                 binding.threedotOptionsLayout.visibility = View.VISIBLE
                 binding.billNameTv.visibility = View.GONE
+                println("burada")
             } else {
                 binding.threedotOptionsLayout.visibility = View.GONE
                 binding.billNameTv.visibility = View.VISIBLE
+                println("burada")
 
             }
         }
