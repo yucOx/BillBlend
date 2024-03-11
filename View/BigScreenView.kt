@@ -1,10 +1,9 @@
-package com.yucox.splitwise.activity
+package com.yucox.splitwise.View
 
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
-import android.view.View.OnLongClickListener
 import android.widget.ImageView
 import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar

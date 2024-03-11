@@ -1,4 +1,4 @@
-package com.yucox.splitwise.adapter
+package com.yucox.splitwise.Adapter
 
 
 import android.app.Activity
@@ -11,7 +11,6 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -21,21 +20,19 @@ import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
-import com.R.R.model.UserInfo
+import com.R.R.model.User
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.ktx.auth
 import com.yucox.splitwise.R
-import com.yucox.splitwise.activity.ProfileDetailActivity
+import com.yucox.splitwise.View.ShowProfileActivity
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class FriendAdapter(
-    private val context: Context,
-    var friendsInfo: ArrayList<UserInfo>
-) :
-    RecyclerView.Adapter<FriendAdapter.ViewHolder>() {
+    private val context: Context, var friendList: ArrayList<User>
+) : RecyclerView.Adapter<FriendAdapter.ViewHolder>() {
     val mailAndPicHashMap = HashMap<String, Uri>()
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -53,105 +50,94 @@ class FriendAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        if (friendsInfo.isNotEmpty()) {
-            holder.name.text = friendsInfo[position].name
-            holder.surname.text = friendsInfo[position].surname
-            holder.mail.text = friendsInfo[position].mail
+        if (friendList.isNotEmpty()) {
+            holder.name.text = friendList[position].name
+            holder.surname.text = friendList[position].surname
+            holder.mail.text = friendList[position].mail
         }
 
-        getAndSetProfilePics(holder.mail,position,holder.pfp)
+        fetchProfileAndSet(holder.mail, friendList[position], holder.pfp)
 
-        goToFriendDetail(holder.frameConstView,position)
-
-        unfriend(holder.unfriendBtn,position)
-
-    }
-
-    private fun goToFriendDetail(openFriendDetail: ConstraintLayout, position: Int) {
-         openFriendDetail.setOnClickListener {
-            var intent = Intent(context, ProfileDetailActivity::class.java)
-            intent.putExtra("name", friendsInfo[position].name)
-            intent.putExtra("surname", friendsInfo[position].surname)
-            intent.putExtra("mail", friendsInfo[position].mail)
-            intent.putExtra("mailAndPicHashMap",mailAndPicHashMap)
-            context.startActivity(intent)
+        holder.frameConstView.setOnClickListener {
+            goToFriendDetail(position)
         }
-    }
 
-    private fun unfriend(unfriendBtn: ImageView, position: Int) {
-        unfriendBtn.setOnClickListener {
-            var builder = MaterialAlertDialogBuilder(context)
-            builder.setTitle("Arkadaşlıktan çıkarmak istediğinize emin misiniz?")
-            builder.setNegativeButton("Evet") { dialog, which ->
-                var ref = Firebase.database.getReference("FriendRequest")
-                ref.addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        if (snapshot.exists()) {
-                            for (snap in snapshot.children) {
-                                if (snap.child("whoGetFriendRequest")
-                                        .getValue() == friendsInfo[position].mail && snap.child("whoSentFriendRequest")
-                                        .getValue() ==
-                                    Firebase.auth.currentUser?.email
-                                ) {
-                                    var key = snap.key
-                                    ref.child(key.toString()).removeValue()
-                                        .addOnSuccessListener {
-                                            CoroutineScope(Dispatchers.Main).launch {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Arkadaşlıktan çıkarıldı.",
-                                                    Toast.LENGTH_LONG
-                                                ).show()
-                                                (context as Activity).finish()
-                                            }
-                                        }
-                                } else if (snap.child("whoSentFriendRequest")
-                                        .getValue() == friendsInfo[position].mail && snap.child("whoGetFriendRequest")
-                                        .getValue() ==
-                                    Firebase.auth.currentUser?.email
-                                ) {
-                                    var key = snap.key
-                                    ref.child(key.toString()).removeValue()
-                                        .addOnSuccessListener {
-                                            CoroutineScope(Dispatchers.Main).launch {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Arkadaşlıktan çıkarıldı.",
-                                                    Toast.LENGTH_LONG
-                                                ).show()
-                                                (context as Activity).finish()
-                                            }
-                                        }
-                                }
-                            }
-                        }
-                    }
-
-                    override fun onCancelled(error: DatabaseError) {
-                    }
-                })
-            }.setPositiveButton("Hayır") { dialog, which -> }.show()
-        }
-    }
-
-    private fun getAndSetProfilePics(mail: TextView, position: Int, pfp: CircleImageView) {
-        if (friendsInfo.isNotEmpty()) {
-            if (mail.text == friendsInfo[position].mail) {
-                if (!(context as Activity).isFinishing) {
-                    Firebase.storage.getReference(friendsInfo[position].mail.toString()).downloadUrl
-                        .addOnSuccessListener { uri ->
-                            mailAndPicHashMap.put(friendsInfo[position].mail.toString(),uri)
-                            Glide.with(context).load(uri).into(pfp)
-                        }.addOnFailureListener {
-                            mailAndPicHashMap.put(friendsInfo[position].mail.toString(),Uri.parse(R.drawable.splitwisecat.toString()))
-                            Glide.with(context).load(R.drawable.dostoyevski).into(pfp)
-                        }
+        holder.unfriendBtn.setOnClickListener {
+            MaterialAlertDialogBuilder(context)
+                .setTitle("Arkadaşlıktan çıkarmak istediğinize emin misiniz?")
+                .setNegativeButton("Evet") { dialog, which ->
+                    unfriend(friendList[position])
                 }
-            }
+                .setPositiveButton("Hayır") { dialog, which ->
+                }
+                .show()
         }
+
+    }
+
+    private fun goToFriendDetail(position: Int) {
+        val intent = Intent(context, ShowProfileActivity::class.java)
+        intent.putExtra("name", friendList[position].name)
+        intent.putExtra("surname", friendList[position].surname)
+        intent.putExtra("mail", friendList[position].mail)
+        intent.putExtra("mailAndPicHashMap", mailAndPicHashMap)
+        context.startActivity(intent)
+    }
+
+    private fun unfriend(friend: User) {
+        val mainUserMail = Firebase.auth.currentUser?.email
+        val ref = Firebase.database.getReference("FriendRequest")
+
+        ref.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (!snapshot.exists())
+                    return
+                for (snap in snapshot.children) {
+                    val receiver = snap.child("whoGetFriendRequest").getValue()
+                    val sender = snap.child("whoSentFriendRequest").getValue()
+
+                    if (!((receiver == friend.mail && sender == mainUserMail) || (sender == friend.mail && receiver == mainUserMail)))
+                        continue
+
+                    val key = snap.key.toString()
+                    ref.child(key).removeValue().addOnSuccessListener {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            Toast.makeText(
+                                context, "Arkadaşlıktan çıkarıldı.", Toast.LENGTH_LONG
+                            ).show()
+                            (context as Activity).finish()
+                        }
+                    }
+                }
+
+            }
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
+    }
+
+    private fun fetchProfileAndSet(mailTv: TextView, friend: User, pfp: CircleImageView) {
+        if (friendList.isEmpty())
+            return
+        if (mailTv.text != friend.mail)
+            return
+        if ((context as Activity).isFinishing)
+            return
+        val mail = friend.mail.toString()
+        Firebase.storage.getReference(mail).downloadUrl
+            .addOnSuccessListener { uri ->
+                mailAndPicHashMap.put(mail, uri)
+                Glide.with(context).load(uri).into(pfp)
+            }.addOnFailureListener {
+                mailAndPicHashMap.put(
+                    mail,
+                    Uri.parse(R.drawable.splitwisecat.toString())
+                )
+                Glide.with(context).load(R.drawable.dostoyevski).into(pfp)
+            }
     }
 
     override fun getItemCount(): Int {
-        return friendsInfo.size
+        return friendList.size
     }
 }

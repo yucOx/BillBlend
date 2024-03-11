@@ -1,4 +1,4 @@
-package com.yucox.splitwise.fragment
+package com.yucox.splitwise.Fragment
 
 
 import android.content.Intent
@@ -19,93 +19,83 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import com.yucox.splitwise.R
-import com.yucox.splitwise.activity.LoginActivity
-import de.hdodenhof.circleimageview.CircleImageView
+import com.yucox.splitwise.View.LoginActivity
+import com.yucox.splitwise.databinding.FragmentSettingsBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 
 class SettingsFragment : Fragment() {
+    private var binding: FragmentSettingsBinding? = null
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_settings, container, false)
-        val nameText = view.findViewById<TextView>(R.id.nameTextsettingsfragment)
-        val surnameText = view.findViewById<TextView>(R.id.surnameTextsettingsfragment)
-        val mailText = view.findViewById<TextView>(R.id.mailTextsettingsfragment)
-
+        binding = FragmentSettingsBinding.inflate(inflater, container, false)
         val auth = FirebaseAuth.getInstance()
         val firebaseStorageRef = Firebase.storage.getReference(auth.currentUser?.email.toString())
 
-        val progressBar = view.findViewById<ProgressBar>(R.id.progressBarsettingsgragment)
-        val pfp = view.findViewById<CircleImageView>(R.id.pfpsettingsfragment)
-        progressBar.visibility = View.GONE
+        binding!!.progressBarsettingsgragment.visibility = View.GONE
 
-        val haveGottenPfp = arguments?.getString("pfp")
-        val haveGottenName = arguments?.getString("name")
-        val haveGottenSurname = arguments?.getString("surname")
-        val haveGottenMail = arguments?.getString("mail")
+        val intentPfp = arguments?.getString("pfp")
+        val intentName = arguments?.getString("name")
+        val intentSurname = arguments?.getString("surname")
+        val intentMail = arguments?.getString("mail")
 
-        setHaveGottenData(haveGottenPfp,haveGottenName,haveGottenSurname,haveGottenMail,nameText,surnameText,mailText,pfp)
+        if (!intentPfp.isNullOrEmpty())
+            Glide.with(requireContext()).load(intentPfp).into(binding!!.pfpsettingsfragment)
+        else
+            Glide.with(requireContext()).load(R.drawable.splitwisecat)
+                .into(binding!!.pfpsettingsfragment)
+        binding!!.nameTextsettingsfragment.text = intentName
+        binding!!.surnameTextsettingsfragment.text = intentSurname
+        binding!!.mailTextsettingsfragment.text = intentMail
 
-        var galleryLauncher =
+
+        val galleryLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 if (result.resultCode == AppCompatActivity.RESULT_OK) {
                     val data: Intent? = result.data
                     val selectedImageUri: Uri? = data?.data
-                    Glide.with(requireContext()).load(selectedImageUri).into(pfp)
-                    if (selectedImageUri != null) {
-                        progressBar.visibility = View.VISIBLE
-                        firebaseStorageRef.putFile(selectedImageUri).addOnSuccessListener {
-                            CoroutineScope(Dispatchers.Main).launch {
-                                Toast.makeText(
-                                    requireContext(),
-                                    "Profil fotoğrafı başarıyla değiştirildi.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                progressBar.visibility = View.GONE
-                            }
+                    Glide.with(requireContext()).load(selectedImageUri)
+                        .into(binding!!.pfpsettingsfragment)
+                    if (selectedImageUri == null)
+                        return@registerForActivityResult
+
+                    binding!!.progressBarsettingsgragment.visibility = View.VISIBLE
+                    firebaseStorageRef.putFile(selectedImageUri).addOnSuccessListener {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            Toast.makeText(
+                                requireContext(),
+                                "Profil fotoğrafı başarıyla değiştirildi.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            binding!!.progressBarsettingsgragment.visibility = View.GONE
                         }
                     }
-                } else {
+                } else
                     Toast.makeText(context, "Hiçbir resim seçilmedi", Toast.LENGTH_SHORT).show()
-                }
+
             }
-        pfp.setOnClickListener {
+        binding!!.pfpsettingsfragment.setOnClickListener {
             val intent = Intent(Intent.ACTION_PICK)
             intent.type = "image/*"
             galleryLauncher.launch(intent)
         }
 
-        var logoutBtn = view.findViewById<ImageView>(R.id.logoutBtnsettingsfragment)
-        logoutBtn.setOnClickListener {
+        binding!!.logoutBtnsettingsfragment.setOnClickListener {
             auth.signOut()
             val intent = Intent(requireContext(), LoginActivity::class.java)
             startActivity(intent)
             activity?.finish()
         }
 
-        return view
+        return binding?.root
     }
 
-    private fun setHaveGottenData(
-        haveGottenPfp: String?,
-        haveGottenName: String?,
-        haveGottenSurname: String?,
-        haveGottenMail: String?,
-        nameText: TextView?,
-        surnameText: TextView?,
-        mailText: TextView?,
-        pfp: ImageView?
-    ) {
-        if (haveGottenPfp.isNullOrEmpty() == false)
-            Glide.with(requireContext()).load(haveGottenPfp).into(pfp!!)
-        else
-            Glide.with(requireContext()).load(R.drawable.splitwisecat).into(pfp!!)
-        nameText?.text = haveGottenName
-        surnameText?.text = haveGottenSurname
-        mailText?.text = haveGottenMail
+    override fun onDestroy() {
+        binding = null
+        super.onDestroy()
     }
 }

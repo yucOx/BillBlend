@@ -1,9 +1,8 @@
-package com.yucox.splitwise.adapter
+package com.yucox.splitwise.Adapter
 
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,15 +11,14 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.R.R.model.Group
-import com.google.firebase.storage.FirebaseStorage
 import com.yucox.splitwise.R
-import com.yucox.splitwise.activity.DetailsOfGroupActivity
+import com.yucox.splitwise.View.DetailsOfGroupActivity
 
 class ListGroupAdapter(
     private val context: Context,
-    private var groupUsers: ArrayList<Group>,
-    private var groupNames: HashSet<String>,
-    var groupKeyAndNameHashMap: HashMap<String, String>
+    private val groupUsers: ArrayList<Group>,
+    private val groupNames: HashSet<String>,
+    private val groupKeyAndNameHashMap: HashMap<String, String>
 ) :
     RecyclerView.Adapter<ListGroupAdapter.ViewHolder>() {
 
@@ -41,17 +39,19 @@ class ListGroupAdapter(
 
         var stringBuff: String? = ""
         var counter = 0
-        var hashCheck = HashSet<String>()
+        val hashCheck = HashSet<String>()
         val usersMail = HashSet<String>()
         for (user in groupUsers) {
-            if (arrayListOfGroupNames[position] == user.groupName) {
-                if (!("${user.name} ${user.surname}" in hashCheck)) {
-                    counter++
-                    stringBuff += "${user.name} ${user.surname}\n"
-                    hashCheck.add("${user.name} ${user.surname}")
-                    usersMail.add(user.email.toString())
-                }
-            }
+            if (arrayListOfGroupNames[position] != user.groupName)
+                continue
+
+            if ("${user.name} ${user.surname}" in hashCheck)
+                continue
+
+            counter++
+            stringBuff += "${user.name} ${user.surname}\n"
+            hashCheck.add("${user.name} ${user.surname}")
+            usersMail.add(user.email.toString())
         }
 
         holder.usersInGroup.text = stringBuff
@@ -61,7 +61,7 @@ class ListGroupAdapter(
 
         holder.selectGroup.setOnClickListener {
             val intent = Intent(context, DetailsOfGroupActivity::class.java)
-            var groupName = arrayListOfGroupNames[position]
+            val groupName = arrayListOfGroupNames[position]
             intent.putExtra("GroupName", groupName)
             intent.putExtra("snapKeyOfGroup", groupKeyAndNameHashMap[groupName])
             context.startActivity(intent)

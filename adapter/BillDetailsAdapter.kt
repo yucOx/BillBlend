@@ -1,4 +1,4 @@
-package com.yucox.splitwise.adapter
+package com.yucox.splitwise.Adapter
 
 
 import android.app.Activity
@@ -22,24 +22,24 @@ import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
-import com.R.R.model.UserInfo
-import com.R.R.model.WhoHowmuch
+import com.R.R.model.User
+import com.R.R.model.BillInfo
 import com.google.android.gms.ads.MobileAds
 import com.yucox.splitwise.R
-import com.yucox.splitwise.activity.ProfileDetailActivity
+import com.yucox.splitwise.View.ShowProfileActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class BillDetailsAdapter(
     private val context: Context,
-    private var whoMustPay: ArrayList<WhoHowmuch>
+    private var whoMustPay: ArrayList<BillInfo>
 ) :
     RecyclerView.Adapter<BillDetailsAdapter.ViewHolder>() {
     private val firebaseStorage = FirebaseStorage.getInstance()
     private val database = FirebaseDatabase.getInstance()
     private val ref = database.getReference("UsersData")
-    val getUserDetail = ArrayList<UserInfo>()
+    val getUserDetail = ArrayList<User>()
     var getMainUserName: String? = ""
     val nameInUserList = mutableListOf<String>()
     val mailAndPicHashMap = HashMap<String,Uri>()
@@ -85,13 +85,13 @@ class BillDetailsAdapter(
     private fun getDetailsAndSetPfp(
         nameInUserList: MutableList<String>,
         userPfp: ImageView,
-        item: WhoHowmuch
+        item: BillInfo
     ) {
         ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
                     for (snap in snapshot.children) {
-                        var temp = snap.getValue(UserInfo::class.java)
+                        var temp = snap.getValue(User::class.java)
                         if ("${temp?.name} ${temp?.surname}" in nameInUserList) {
                             getUserDetail.add(temp!!)
                         }
@@ -124,7 +124,7 @@ class BillDetailsAdapter(
         paymentStatus: ImageView,
         isHePaidTextView: TextView,
         position: Int,
-        item: WhoHowmuch
+        item: BillInfo
     ) {
         paymentStatus.setOnClickListener {
             if (whoMustPay[position].whoWillPay != getMainUserName) {
@@ -142,7 +142,7 @@ class BillDetailsAdapter(
                             for (snap in snapshot.children) {
                                 if (snap.exists()) {
                                     for (rsnap in snap.children) {
-                                        var temp = rsnap.getValue(WhoHowmuch::class.java)
+                                        var temp = rsnap.getValue(BillInfo::class.java)
                                         var getRealRef = rsnap.ref
                                         if (temp?.whohasPaid == 0 && temp?.whoWillPay == getMainUserName && temp?.billname == item.billname) {
                                             CoroutineScope(Dispatchers.Main).launch {
@@ -175,7 +175,7 @@ class BillDetailsAdapter(
     }
 
     private fun setPaymentStatus(
-        item: WhoHowmuch,
+        item: BillInfo,
         paymentStatus: ImageView,
         isHePaidTextView: TextView,
         howMuchWillPay: TextView
@@ -201,7 +201,7 @@ class BillDetailsAdapter(
                 override fun onDataChange(snapshot: DataSnapshot) {
                     if (snapshot.exists()) {
                         for (snap in snapshot.children) {
-                            var temp = snap.getValue(UserInfo::class.java)
+                            var temp = snap.getValue(User::class.java)
                             if ("${temp?.name} ${temp?.surname}" == whoMustPay[position].whoWillPay) {
                                 intentName = temp?.name.toString()
                                 intentSurname = temp?.surname.toString()
@@ -211,7 +211,7 @@ class BillDetailsAdapter(
                     }
                     if (!intentName.isBlank() && !intentSurname.isBlank() && !intentMail.isBlank()) {
                         CoroutineScope(Dispatchers.Main).launch {
-                            var intent = Intent(context, ProfileDetailActivity::class.java)
+                            var intent = Intent(context, ShowProfileActivity::class.java)
                             intent.putExtra("name", intentName)
                             intent.putExtra("surname", intentSurname)
                             intent.putExtra("mail", intentMail)

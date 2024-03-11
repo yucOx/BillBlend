@@ -1,4 +1,4 @@
-package com.yucox.splitwise.adapter
+package com.yucox.splitwise.Adapter
 
 
 import android.content.Context
@@ -16,8 +16,8 @@ import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
-import com.R.R.model.SendFriendRequest
-import com.R.R.model.UserInfo
+import com.R.R.model.Friend
+import com.R.R.model.User
 import com.google.firebase.auth.ktx.auth
 import com.yucox.splitwise.R
 import de.hdodenhof.circleimageview.CircleImageView
@@ -25,18 +25,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class ShowRequestAdapter(private val context: Context, private var userList: ArrayList<UserInfo>, var randomImg : ArrayList<Int>) :
+class ShowRequestAdapter(
+    private val context: Context,
+    private val userList: ArrayList<User>,
+    private val randomImg: ArrayList<Int>
+) :
     RecyclerView.Adapter<ShowRequestAdapter.ViewHolder>() {
-    val database = Firebase.database
-    val ref = database.getReference("FriendRequest")
+    private val database = Firebase.database
+    private val ref = database.getReference("FriendRequest")
+    private val mainUserMail = Firebase.auth.currentUser?.email
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        var pfp = view.findViewById<CircleImageView>(R.id.profileShowRequestItem)
-        var name =  view.findViewById<TextView>(R.id.nameShowRequestItem)
-        var surname = view.findViewById<TextView>(R.id.surnameShowRequestItem)
-        var mail = view.findViewById<TextView>(R.id.mailShowRequestItem)
-        var acceptBtn = view.findViewById<ImageView>(R.id.acceptRequestShowRequestItem)
-        var rejectBtn = view.findViewById<ImageView>(R.id.refuseRequestShowRequestItem)
+        val pfp = view.findViewById<CircleImageView>(R.id.profileShowRequestItem)
+        val name = view.findViewById<TextView>(R.id.nameShowRequestItem)
+        val surname = view.findViewById<TextView>(R.id.surnameShowRequestItem)
+        val mail = view.findViewById<TextView>(R.id.mailShowRequestItem)
+        val acceptBtn = view.findViewById<ImageView>(R.id.acceptRequestShowRequestItem)
+        val rejectBtn = view.findViewById<ImageView>(R.id.refuseRequestShowRequestItem)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -45,87 +50,96 @@ class ShowRequestAdapter(private val context: Context, private var userList: Arr
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-
         val item = userList[position]
         holder.name.text = item.name.toString()
         holder.surname.text = item.surname.toString()
         holder.mail.text = item.mail.toString()
 
-        acceptRequest(holder.acceptBtn,item)
-        rejectRequest(holder.rejectBtn,item)
+        fetchAndSetProfile(item, holder.pfp)
 
-        getUsersPhotos(item,holder.pfp)
-
+        holder.acceptBtn.setOnClickListener {
+            acceptRequest(item)
+        }
+        holder.rejectBtn.setOnClickListener {
+            AlertDialog.Builder(context)
+                .setTitle("Arkadaşlık isteğini reddetmek istediğine emin misin?")
+                .setNegativeButton("Evet") { dialog, which ->
+                    rejectRequest(item)
+                }
+                .setPositiveButton("Hayır") { dialog, which ->
+                }
+                .show()
+        }
     }
 
-    private fun getUsersPhotos(item: UserInfo, pfp: CircleImageView) {
+    private fun fetchAndSetProfile(item: User, pfp: CircleImageView) {
         Firebase.storage.getReference(item.mail.toString()).downloadUrl
-            .addOnSuccessListener {uri->
+            .addOnSuccessListener { uri ->
                 Glide.with(context).load(uri).into(pfp)
-            }.addOnFailureListener{
+            }.addOnFailureListener {
                 Glide.with(context).load(randomImg.shuffled()[0]).into(pfp)
             }
     }
 
-    private fun rejectRequest(rejectBtn: ImageView, item: UserInfo) {
-        rejectBtn.setOnClickListener {
-            var builder = AlertDialog.Builder(context)
-            builder.setTitle("Arkadaşlık isteğini reddetmek istediğine emin misin?")
-            builder.setNegativeButton("Evet") { dialog, which ->
-                ref.addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        if (snapshot.exists()) {
-                            for (snap in snapshot.children) {
-                                var a = snap.getValue(SendFriendRequest::class.java)
-                                if (a?.whoSentFriendRequest == item.mail && a?.whoGetFriendRequest == Firebase.auth.currentUser?.email) {
-                                    var uniqueId = snap.key.toString()
-                                    ref.child(uniqueId).removeValue()
-                                        .addOnCompleteListener{it ->
-                                            if(it.isSuccessful){
-                                                CoroutineScope(Dispatchers.Main).launch {
-                                                    userList.remove(item)
-                                                    notifyDataSetChanged()
-                                                }
-                                            }
-                                        }
+    private fun rejectRequest(item: User) {
+        ref.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (!snapshot.exists())
+                    return
+                for (snap in snapshot.children) {
+                    val temp = snap.getValue(Friend::class.java)
+                    val receiver = temp?.whoGetFriendRequest
+                    val sender = temp?.whoSentFriendRequest
+                    if (!(sender == item.mail && receiver == mainUserMail))
+                        continue
+
+                    val uniqueId = snap.key.toString()
+                    ref.child(uniqueId).removeValue()
+                        .addOnCompleteListener { it ->
+                            if (it.isSuccessful) {
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    userList.remove(item)
+                                    notifyDataSetChanged()
                                 }
                             }
                         }
-                    }
-                    override fun onCancelled(error: DatabaseError) {
-                    }
-                })
+                }
             }
-            builder.setPositiveButton("Hayır"){dialog,which->}.show()
-        }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
     }
 
-    private fun acceptRequest(acceptBtn: ImageView, item: UserInfo) {
-        acceptBtn.setOnClickListener {
-            ref.addListenerForSingleValueEvent(object : ValueEventListener{
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    if(snapshot.exists()){
-                        for(snap in snapshot.children){
-                            var a = snap.getValue(SendFriendRequest::class.java)
-                            if(a?.whoSentFriendRequest == item.mail && a?.whoGetFriendRequest == Firebase.auth.currentUser?.email){
-                                var uniqueId = snap.key.toString()
-                                ref.child(uniqueId).child("status").setValue(1)
-                                    .addOnCompleteListener{it ->
-                                        if(it.isSuccessful){
-                                            CoroutineScope(Dispatchers.Main).launch {
-                                                userList.remove(item)
-                                                notifyDataSetChanged()
-                                            }
-                                        }
-                                    }
+    private fun acceptRequest(item: User) {
+        ref.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (!snapshot.exists())
+                    return
+
+                for (snap in snapshot.children) {
+                    val temp = snap.getValue(Friend::class.java)
+                    val receiver = temp?.whoGetFriendRequest
+                    val sender = temp?.whoSentFriendRequest
+                    if (!(sender == item.mail && receiver == mainUserMail))
+                        return
+
+                    val uniqueId = snap.key.toString()
+                    ref.child(uniqueId).child("status").setValue(1)
+                        .addOnCompleteListener { it ->
+                            if (it.isSuccessful) {
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    userList.remove(item)
+                                    notifyDataSetChanged()
+                                }
                             }
                         }
-                    }
                 }
-                override fun onCancelled(error: DatabaseError) {
-                }
-            })
-        }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
     }
 
     override fun getItemCount(): Int {

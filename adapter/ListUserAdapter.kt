@@ -1,4 +1,4 @@
-package com.yucox.splitwise.adapter
+package com.yucox.splitwise.Adapter
 
 
 import android.app.Activity
@@ -16,23 +16,23 @@ import com.bumptech.glide.Glide
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import com.R.R.model.Group
-import com.R.R.model.UserInfo
+import com.R.R.model.User
 import com.yucox.splitwise.R
-import com.yucox.splitwise.activity.ProfileDetailActivity
+import com.yucox.splitwise.View.ShowProfileActivity
 import de.hdodenhof.circleimageview.CircleImageView
 
 class ListUserAdapter(
     private val context: Context,
-    private val userList: ArrayList<UserInfo>,
+    private val userList: ArrayList<User>,
     private val groupuserList: ArrayList<Group>,
     private val randomPfp: MutableList<Int>
 ) : RecyclerView.Adapter<ListUserAdapter.ViewHolder>() {
     val mailAndPicHashMap = HashMap<String, Uri>()
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        var nameInfo = view.findViewById<TextView>(R.id.showName_profileimageshow)
-        var pfp = view.findViewById<CircleImageView>(R.id.pfp_profileimageshow)
-        var selectLinear = view.findViewById<LinearLayout>(R.id.linearLayout4)
+        val nameInfo = view.findViewById<TextView>(R.id.showName_profileimageshow)
+        val pfp = view.findViewById<CircleImageView>(R.id.pfp_profileimageshow)
+        val selectLinear = view.findViewById<LinearLayout>(R.id.linearLayout4)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -46,55 +46,61 @@ class ListUserAdapter(
         val userDetails = cleanuserList[position]
 
         holder.nameInfo.text = "${userDetails.name}"
+        fetchPfpAndSet(userDetails, mailAndPicHashMap, holder.pfp)
 
-        getPfpAndSet(userDetails,mailAndPicHashMap,holder.pfp)
-
-        openProfile(holder.selectLinear,userDetails,mailAndPicHashMap)
-
+        holder.selectLinear.setOnClickListener {
+            openProfile(userDetails, mailAndPicHashMap)
+        }
     }
 
-    private fun getPfpAndSet(
-        userDetails: UserInfo,
-        mailAndPicHashMap: HashMap<String, Uri>,
-        pfp: CircleImageView
+    private fun fetchPfpAndSet(
+        userDetails: User, mailAndPicHashMap: HashMap<String, Uri>, pfp: CircleImageView
     ) {
-        if (userDetails.mail?.isNotEmpty() == true) {
-            Firebase.storage.getReference(userDetails.mail.toString())
-                .downloadUrl.addOnSuccessListener { uri ->
-                    if (!(context as Activity).isFinishing) {
-                        Glide.with(context).load(uri).into(pfp)
-                        mailAndPicHashMap.put(userDetails.mail.toString(),uri)
-                    }
-                }.addOnFailureListener {
-                    if (!(context as Activity).isFinishing) {
-                        Glide.with(context).load(randomPfp.shuffled()[0]).into(pfp)
-                        mailAndPicHashMap.put(userDetails.mail.toString(),Uri.parse(randomPfp.shuffled()[0].toString()))
-                    }
-                }
+        if (userDetails.mail?.isEmpty() == true)
+            return
+
+        Firebase.storage.getReference(userDetails.mail.toString()).downloadUrl.addOnSuccessListener { uri ->
+            if ((context as Activity).isFinishing)
+                return@addOnSuccessListener
+
+            Glide.with(context).load(uri).into(pfp)
+            mailAndPicHashMap.put(userDetails.mail.toString(), uri)
+
+        }.addOnFailureListener {
+            if ((context as Activity).isFinishing)
+                return@addOnFailureListener
+
+            Glide.with(context).load(randomPfp.shuffled()[0]).into(pfp)
+            mailAndPicHashMap.put(
+                userDetails.mail.toString(),
+                Uri.parse(randomPfp.shuffled()[0].toString())
+            )
         }
     }
 
     private fun openProfile(
-        selectLinear: LinearLayout,
-        userDetails: UserInfo,
-        mailAndPicHashMap: HashMap<String, Uri>
+        userDetails: User, mailAndPicHashMap: HashMap<String, Uri>
     ) {
-        selectLinear.setOnClickListener {
-            val intent = Intent(context, ProfileDetailActivity::class.java)
-            intent.putExtra("name", userDetails.name)
-            intent.putExtra("surname", userDetails.surname)
-            intent.putExtra("mail", userDetails.mail)
-            if(mailAndPicHashMap.isNullOrEmpty()){
-                Toast.makeText(context,"Bir sorunla karşılaşıldı, lütfen daha sonra tekrar deneyin",Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            intent.putExtra("mailAndPicHashMap",mailAndPicHashMap)
-            context.startActivity(intent)
+        val intent = Intent(context, ShowProfileActivity::class.java)
+        intent.putExtra("name", userDetails.name)
+        intent.putExtra("surname", userDetails.surname)
+        intent.putExtra("mail", userDetails.mail)
+
+        if (mailAndPicHashMap.isEmpty()) {
+            Toast.makeText(
+                context,
+                "Bir sorunla karşılaşıldı, lütfen daha sonra tekrar deneyin",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
         }
+        intent.putExtra("mailAndPicHashMap", mailAndPicHashMap)
+        context.startActivity(intent)
+
     }
 
     override fun getItemCount(): Int {
-        var cleanuserList = userList.distinct()
+        val cleanuserList = userList.distinct()
         return cleanuserList.size
     }
 
