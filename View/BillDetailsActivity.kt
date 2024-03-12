@@ -48,14 +48,14 @@ class BillDetailsActivity : AppCompatActivity() {
 
         billViewModel = ViewModelProvider(this).get(BillViewModel::class.java)
 
-        fun initData(){
-            if(billName?.isBlank() == true)
+        fun initData() {
+            if (billName?.isBlank() == true)
                 return
-            if(groupName?.isBlank() == true)
+            if (groupName?.isBlank() == true)
                 return
-            if(snapKeyOfGroup?.isBlank() == true)
+            if (snapKeyOfGroup?.isBlank() == true)
                 return
-            if(photoLocation?.isBlank() == true)
+            if (photoLocation?.isBlank() == true)
                 return
             billViewModel.setIntentData(billName!!, groupName, snapKeyOfGroup!!, photoLocation!!)
         }
@@ -121,10 +121,13 @@ class BillDetailsActivity : AppCompatActivity() {
 
         }
 
-        threeDotSettings()
+        binding.threeDotBtn.setOnClickListener {
+            threeDotSettings()
+        }
 
-        zoomOn()
-
+        binding.photoOfBill.setOnClickListener {
+            zoomOn()
+        }
         setInfo()
 
         binding.backBtn.setOnClickListener {
@@ -157,11 +160,10 @@ class BillDetailsActivity : AppCompatActivity() {
     }
 
     private fun zoomOn() {
-        binding.photoOfBill.setOnClickListener {
-            val intent = Intent(this@BillDetailsActivity, BigScreenView::class.java)
-            intent.putExtra("img", billImg)
-            startActivity(intent)
-        }
+        val intent = Intent(this@BillDetailsActivity, BigScreenView::class.java)
+        intent.putExtra("img", billImg)
+        startActivity(intent)
+
     }
 
 
@@ -192,15 +194,13 @@ class BillDetailsActivity : AppCompatActivity() {
     }
 
     private fun threeDotSettings() {
-        binding.threeDotBtn.setOnClickListener {
-            if (binding.threedotOptionsLayout.visibility == View.GONE) {
-                binding.threedotOptionsLayout.visibility = View.VISIBLE
-                binding.billNameTv.visibility = View.GONE
-            } else {
-                binding.threedotOptionsLayout.visibility = View.GONE
-                binding.billNameTv.visibility = View.VISIBLE
+        if (binding.threedotOptionsLayout.visibility == View.GONE) {
+            binding.threedotOptionsLayout.visibility = View.VISIBLE
+            binding.billNameTv.visibility = View.GONE
+        } else {
+            binding.threedotOptionsLayout.visibility = View.GONE
+            binding.billNameTv.visibility = View.VISIBLE
 
-            }
         }
     }
 

@@ -56,7 +56,7 @@ class ListGroupAdapter(
 
         holder.usersInGroup.text = stringBuff
         holder.groupName.text = arrayListOfGroupNames[position]
-        initListPfpRecycler(usersMail.size, usersMail,holder.listPfpRecycler)
+        initListPfpRecycler(usersMail.size, usersMail, holder.listPfpRecycler)
 
 
         holder.selectGroup.setOnClickListener {
@@ -73,8 +73,8 @@ class ListGroupAdapter(
         usersMail: HashSet<String>,
         listPfpRecycler: RecyclerView
     ) {
-        val adapter = ListPfpAdapter(context,usersMail,counter)
-        listPfpRecycler.layoutManager = LinearLayoutManager(context,RecyclerView.HORIZONTAL,false)
+        val adapter = ListPfpAdapter(context, usersMail, counter)
+        listPfpRecycler.layoutManager = LinearLayoutManager(context, RecyclerView.HORIZONTAL, false)
         listPfpRecycler.adapter = adapter
     }
 

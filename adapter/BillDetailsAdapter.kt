@@ -19,37 +19,39 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
 import com.R.R.model.User
 import com.R.R.model.BillInfo
 import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.TaskCompletionSource
 import com.yucox.splitwise.R
 import com.yucox.splitwise.View.ShowProfileActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class BillDetailsAdapter(
     private val context: Context,
-    private var whoMustPay: ArrayList<BillInfo>
+    private val whoMustPay: ArrayList<BillInfo>
 ) :
     RecyclerView.Adapter<BillDetailsAdapter.ViewHolder>() {
     private val firebaseStorage = FirebaseStorage.getInstance()
     private val database = FirebaseDatabase.getInstance()
     private val ref = database.getReference("UsersData")
-    val getUserDetail = ArrayList<User>()
-    var getMainUserName: String? = ""
+    val userDetailsList = ArrayList<User>()
+    var mainUserName: String? = ""
     val nameInUserList = mutableListOf<String>()
-    val mailAndPicHashMap = HashMap<String,Uri>()
+    val mailAndPicHashMap = HashMap<String, Uri>()
 
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         var userPfp = view.findViewById<ImageView>(R.id.userPfp_billdetails)
         var whoWillPay = view.findViewById<TextView>(R.id.whoWillPay)
-        var paymentStatus = view.findViewById<ImageView>(R.id.hadntPaid)
-        var isHePaidTextView = view.findViewById<TextView>(R.id.isHePaid)
+        var paymentStatusImage = view.findViewById<ImageView>(R.id.hadntPaid)
+        var paymentStatusTv = view.findViewById<TextView>(R.id.isHePaid)
         var howMuchWillPay = view.findViewById<TextView>(R.id.howMuchHeWillPay)
         var showOrNot = view.findViewById<LinearLayout>(R.id.showOrNot)
     }
@@ -62,7 +64,6 @@ class BillDetailsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = whoMustPay[position]
-        println(whoMustPay.size)
         if (whoMustPay[position].whohasPaid == 2)
             holder.showOrNot.visibility = View.GONE
 
@@ -72,162 +73,200 @@ class BillDetailsAdapter(
             nameInUserList.add(name.whoWillPay.toString())
         }
 
-        setPaymentStatus(item, holder.paymentStatus, holder.isHePaidTextView,holder.howMuchWillPay)
-        changePaymentStatus(holder.paymentStatus,holder.isHePaidTextView,position,item)
+        CoroutineScope(Dispatchers.Main).launch {
+            val result = fetchData(nameInUserList).await()
+            if (!result)
+                return@launch
+            fetchAndSetPics(holder.userPfp, item.whoWillPay)
+        }
 
-        getDetailsAndSetPfp(nameInUserList,holder.userPfp,item)
+        if (item.whohasPaid == 0) {
+            holder.paymentStatusImage.setImageResource(R.drawable.uncheckedbg)
+            holder.paymentStatusTv.text = "Ödenmedi"
+        } else {
+            holder.paymentStatusImage.setImageResource(R.drawable.checkedbg)
+            holder.paymentStatusTv.text = "Ödendi"
+        }
+        var realHowMuch = String.format("%.2f", item.howmuchWillpay)
+        holder.howMuchWillPay.text = "$realHowMuch₺"
 
-        goToProfileDetails(holder.userPfp, position)
+        holder.paymentStatusImage.setOnClickListener {
+            CoroutineScope(Dispatchers.Main).launch {
+                val result = changePaymentStatus(item, position).await()
+                when (result) {
+                    -1 -> {
+                        Toast.makeText(
+                            context,
+                            "Sadece kendi ödeme durumunuzu değiştirebilirsiniz",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
 
+                    0 -> {
+                        holder.paymentStatusImage.setImageResource(R.drawable.uncheckedbg)
+                        holder.paymentStatusTv.text = "Ödenmedi"
+                        whoMustPay[position].whohasPaid = 0
+                    }
 
+                    1 -> {
+                        holder.paymentStatusImage.setImageResource(R.drawable.checkedbg)
+                        holder.paymentStatusTv.text = "Ödendi"
+                        whoMustPay[position].whohasPaid = 1
+                    }
+
+                    else -> Toast.makeText(context, R.string.try_later, Toast.LENGTH_LONG)
+                        .show()
+                }
+            }
+        }
+
+        holder.userPfp.setOnClickListener {
+            CoroutineScope(Dispatchers.Main).launch {
+                val user = fetchSelectedUserInfo(item).await()
+                if (user.name!!.isBlank())
+                    return@launch
+                openProfile(user)
+            }
+        }
     }
 
-    private fun getDetailsAndSetPfp(
+    private fun fetchAndSetPics(userPfp: ImageView, whoWillPay: String?) {
+        for (user in userDetailsList) {
+            if (whoWillPay != "${user.name} ${user.surname}")
+                continue
+
+            val mail = user.mail.toString()
+            firebaseStorage.getReference(mail).downloadUrl
+                .addOnSuccessListener { uri ->
+                    mailAndPicHashMap.put(user.mail.toString(), uri)
+                    if ((context as Activity).isFinishing)
+                        return@addOnSuccessListener
+                    Glide.with(context).load(uri.toString()).into(userPfp)
+                }
+                .addOnFailureListener {
+                    mailAndPicHashMap.put(
+                        user.mail.toString(),
+                        Uri.parse(R.drawable.splitwisecat.toString())
+                    )
+                    if ((context as Activity).isFinishing)
+                        return@addOnFailureListener
+                    Glide.with(context).load(R.drawable.luffy).into(userPfp)
+                }
+        }
+    }
+
+    private fun fetchData(
         nameInUserList: MutableList<String>,
-        userPfp: ImageView,
-        item: BillInfo
-    ) {
+    ): Task<Boolean> {
+        val taskCompletionSource = TaskCompletionSource<Boolean>()
         ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    for (snap in snapshot.children) {
-                        var temp = snap.getValue(User::class.java)
-                        if ("${temp?.name} ${temp?.surname}" in nameInUserList) {
-                            getUserDetail.add(temp!!)
-                        }
-                        if (temp?.mail == Firebase.auth.currentUser?.email) {
-                            getMainUserName = "${temp?.name} ${temp?.surname}"
-                        }
+                if (!snapshot.exists())
+                    return
+
+                for (snap in snapshot.children) {
+                    val temp = snap.getValue(User::class.java)
+                    if ("${temp?.name} ${temp?.surname}" in nameInUserList) {
+                        userDetailsList.add(temp!!)
+                    }
+                    if (temp?.mail == Firebase.auth.currentUser?.email) {
+                        mainUserName = "${temp?.name} ${temp?.surname}"
                     }
                 }
-                for (user in getUserDetail) {
-                    if (item.whoWillPay == "${user.name} ${user.surname}") {
-                        firebaseStorage.getReference(user.mail.toString()).downloadUrl.addOnSuccessListener { uri ->
-                            mailAndPicHashMap.put(user.mail.toString(),uri)
-                            if (!(context as Activity).isFinishing)
-                                Glide.with(context).load(uri.toString()).into(userPfp)
-                        }.addOnFailureListener {
-                            mailAndPicHashMap.put(user.mail.toString(),Uri.parse(R.drawable.splitwisecat.toString()))
-                            if (!(context as Activity).isFinishing)
-                                Glide.with(context).load(R.drawable.luffy).into(userPfp)
+                taskCompletionSource.setResult(true)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                taskCompletionSource.setResult(false)
+            }
+        })
+        return taskCompletionSource.task
+    }
+
+    private fun changePaymentStatus(item: BillInfo, position: Int): Task<Int> {
+        val taskCompletionSource = TaskCompletionSource<Int>()
+        val refForBill = database.getReference("Bills")
+
+        refForBill.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (mainUserName != item.whoWillPay) {
+                    taskCompletionSource.setResult(-1)
+                    return
+                }
+                if (!snapshot.exists())
+                    return
+                for (snap in snapshot.children) {
+                    if (!snap.exists())
+                        continue
+
+                    for (rsnap in snap.children) {
+                        val temp = rsnap.getValue(BillInfo::class.java)
+                        val snapKey = rsnap.ref
+                        if (temp?.whohasPaid == 0 && temp?.whoWillPay == mainUserName && temp?.billname == item.billname) {
+                            taskCompletionSource.setResult(1)
+                            snapKey.child("whohasPaid").setValue(1)
+                            break
+                        } else if (temp?.whohasPaid == 1 && temp?.whoWillPay == mainUserName && temp?.billname == item.billname) {
+                            taskCompletionSource.setResult(0)
+                            snapKey.child("whohasPaid").setValue(0)
+                            break
                         }
                     }
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
+                taskCompletionSource.setResult(-2)
             }
         })
+        return taskCompletionSource.task
     }
 
-    private fun changePaymentStatus(
-        paymentStatus: ImageView,
-        isHePaidTextView: TextView,
-        position: Int,
-        item: BillInfo
-    ) {
-        paymentStatus.setOnClickListener {
-            if (whoMustPay[position].whoWillPay != getMainUserName) {
-                Toast.makeText(
-                    context,
-                    "Sadece kendi ödeme durumunuzu değiştirebilirsiniz",
-                    Toast.LENGTH_SHORT
-                ).show()
-            } else {
-                var databaseForBill = Firebase.database
-                var refForBill = databaseForBill.getReference("Bills")
-                refForBill.addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        if (snapshot.exists()) {
-                            for (snap in snapshot.children) {
-                                if (snap.exists()) {
-                                    for (rsnap in snap.children) {
-                                        var temp = rsnap.getValue(BillInfo::class.java)
-                                        var getRealRef = rsnap.ref
-                                        if (temp?.whohasPaid == 0 && temp?.whoWillPay == getMainUserName && temp?.billname == item.billname) {
-                                            CoroutineScope(Dispatchers.Main).launch {
-                                                paymentStatus.setImageResource(R.drawable.checkedbg)
-                                                isHePaidTextView.text = "Ödendi"
+    private fun fetchSelectedUserInfo(item: BillInfo): Task<User> {
+        val ref = database.getReference("UsersData")
+        val user = User()
+        val taskCompletionSource = TaskCompletionSource<User>()
 
-                                            }
-                                            getRealRef.child("whohasPaid").setValue(1)
-                                            whoMustPay[position].whohasPaid = 1
-                                        } else if (temp?.whohasPaid == 1 && temp?.whoWillPay == getMainUserName && temp?.billname == item.billname) {
-                                            CoroutineScope(Dispatchers.Main).launch {
-                                                paymentStatus.setImageResource(R.drawable.uncheckedbg)
-                                                isHePaidTextView.text = "Ödenmedi"
-
-                                            }
-                                            getRealRef.child("whohasPaid").setValue(0)
-                                            whoMustPay[position].whohasPaid = 0
-                                        }
-                                    }
-                                }
-                            }
-                        }
+        ref.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (!snapshot.exists()) {
+                    return
+                }
+                for (snap in snapshot.children) {
+                    val temp = snap.getValue(User::class.java)
+                    if ("${temp?.name} ${temp?.surname}" == item.whoWillPay) {
+                        user.name = temp?.name.toString()
+                        user.surname = temp?.surname.toString()
+                        user.mail = temp?.mail.toString()
                     }
-
-                    override fun onCancelled(error: DatabaseError) {
-                    }
-                })
+                }
+                if (!user.name!!.isBlank() && !user.surname!!.isBlank() && !user.mail!!.isBlank()) {
+                    taskCompletionSource.setResult(user)
+                } else
+                    taskCompletionSource.setResult(null)
             }
-        }
+
+            override fun onCancelled(error: DatabaseError) {
+                taskCompletionSource.setResult(null)
+            }
+        })
+        return taskCompletionSource.task
     }
 
-    private fun setPaymentStatus(
-        item: BillInfo,
-        paymentStatus: ImageView,
-        isHePaidTextView: TextView,
-        howMuchWillPay: TextView
-    ) {
-        if (item.whohasPaid == 0) {
-            paymentStatus.setImageResource(R.drawable.uncheckedbg)
-            isHePaidTextView.text = "Ödenmedi"
+    private fun openProfile(user: User) {
+        val intent = Intent(context, ShowProfileActivity::class.java)
+        intent.putExtra("name", user.name)
+        intent.putExtra("surname", user.surname)
+        intent.putExtra("mail", user.mail)
+        intent.putExtra("mailAndPicHashMap", mailAndPicHashMap)
+        if (mailAndPicHashMap.isEmpty()) {
+            Toast.makeText(
+                context,
+                R.string.try_later,
+                Toast.LENGTH_SHORT
+            ).show()
         } else {
-            paymentStatus.setImageResource(R.drawable.checkedbg)
-            isHePaidTextView.text = "Ödendi"
-        }
-        var realHowMuch = String.format("%.2f", item.howmuchWillpay)
-        howMuchWillPay.text = "$realHowMuch₺"
-    }
-
-    private fun goToProfileDetails(userPfp: ImageView, position: Int) {
-        var intentName = ""
-        var intentSurname = ""
-        var intentMail = ""
-        userPfp.setOnClickListener {
-            var ref = Firebase.database.getReference("UsersData")
-            ref.addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    if (snapshot.exists()) {
-                        for (snap in snapshot.children) {
-                            var temp = snap.getValue(User::class.java)
-                            if ("${temp?.name} ${temp?.surname}" == whoMustPay[position].whoWillPay) {
-                                intentName = temp?.name.toString()
-                                intentSurname = temp?.surname.toString()
-                                intentMail = temp?.mail.toString()
-                            }
-                        }
-                    }
-                    if (!intentName.isBlank() && !intentSurname.isBlank() && !intentMail.isBlank()) {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            var intent = Intent(context, ShowProfileActivity::class.java)
-                            intent.putExtra("name", intentName)
-                            intent.putExtra("surname", intentSurname)
-                            intent.putExtra("mail", intentMail)
-                            intent.putExtra("mailAndPicHashMap",mailAndPicHashMap)
-                            if(mailAndPicHashMap.isNullOrEmpty()){
-                                Toast.makeText(context,"Bir hata ile karşılaşıldı, lütfen daha sonra tekrar deneyin",Toast.LENGTH_SHORT).show()
-                            }else {
-                                context.startActivity(intent)
-                            }
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                }
-            })
+            context.startActivity(intent)
         }
     }
 

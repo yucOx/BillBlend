@@ -19,7 +19,6 @@ import kotlinx.coroutines.tasks.await
 
 class AnswerFriendshipRequest : AppCompatActivity() {
     private lateinit var adapter: ShowRequestAdapter
-
     private lateinit var friendViewModel: FriendRequestViewModel
     private lateinit var binding: AnswerFriendshipRequestActivityBinding
 

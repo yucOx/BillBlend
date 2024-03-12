@@ -67,20 +67,19 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun logIn(): Boolean {
-        val progressBar = findViewById<ProgressBar>(R.id.progressBarLogin)
-        progressBar.visibility = View.VISIBLE
+        binding.progressBarLogin.visibility = View.VISIBLE
         val getMail = binding.signinMail.text.toString()
         val getPass = binding.password.text.toString()
         if (getMail.isBlank()) {
             Toast.makeText(this@LoginActivity, "Mail alanı boş olmamalı!", Toast.LENGTH_SHORT)
                 .show()
-            progressBar.visibility = View.INVISIBLE
+            binding.progressBarLogin.visibility = View.INVISIBLE
             return false
         }
         if (getPass.isBlank()) {
             Toast.makeText(this@LoginActivity, "Şifre alanı boş olmamalı!", Toast.LENGTH_LONG)
                 .show()
-            progressBar.visibility = View.INVISIBLE
+            binding.progressBarLogin.visibility = View.INVISIBLE
             return false
         }
         return true

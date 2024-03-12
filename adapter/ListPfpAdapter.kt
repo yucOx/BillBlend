@@ -12,7 +12,7 @@ import de.hdodenhof.circleimageview.CircleImageView
 
 class ListPfpAdapter(
     private val context: Context,
-    private val usersMail : HashSet<String>,
+    private val usersMail: HashSet<String>,
     private val counter: Int
 ) :
     RecyclerView.Adapter<ListPfpAdapter.ViewHolder>() {
@@ -36,7 +36,7 @@ class ListPfpAdapter(
             .addOnSuccessListener { uri ->
                 Glide.with(context).load(uri).into(holder.pfpCv)
             }
-            .addOnFailureListener{
+            .addOnFailureListener {
                 Glide.with(context).load(R.drawable.luffy).into(holder.pfpCv)
             }
     }

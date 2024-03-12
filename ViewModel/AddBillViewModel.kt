@@ -20,6 +20,7 @@ class AddBillViewModel : ViewModel() {
     private val database = FirebaseDatabase.getInstance()
     private val groupUsersArray = ArrayList<Group>()
     private val groupUsersInfoArray = ArrayList<User>()
+    private val mainUserInfo = User()
     private val nameAndSurnameList = mutableListOf<String>()
     private val auth = FirebaseAuth.getInstance()
     private var snapKey = ""
@@ -49,7 +50,7 @@ class AddBillViewModel : ViewModel() {
                     for (snap in snapshot.children) {
                         if (snap.exists()) {
                             for (realsnap in snap.children) {
-                                var temp = realsnap.getValue(Group::class.java)
+                                val temp = realsnap.getValue(Group::class.java)
                                 if (temp?.snapKeyOfGroup == snapKey) {
                                     groupUsersArray.add(temp!!)
                                 }
@@ -76,7 +77,11 @@ class AddBillViewModel : ViewModel() {
                 var i = 0
                 if (snapshot.exists()) {
                     for (snap in snapshot.children) {
-                        var temp = snap.getValue(User::class.java)
+                        val temp = snap.getValue(User::class.java)
+                        if(temp?.mail == auth.currentUser?.email.toString()){
+                            mainUserInfo.name = temp?.name
+                            mainUserInfo.surname = temp?.surname
+                        }
                         for (user in groupUsersArray.distinct()) {
                             if (user?.email == temp?.mail && user.snapKeyOfGroup == snapKey) {
                                 if (user.email != auth.currentUser?.email) {
@@ -149,7 +154,7 @@ class AddBillViewModel : ViewModel() {
         )
         refOfBills.child(billKey).setValue(getWhoWillPay())
             .addOnSuccessListener {
-                if (!selectedImage.isNullOrBlank())
+                if (selectedImage.isBlank())
                     taskCompletionSource.setResult(true)
                 else {
                     Firebase.storage.getReference(billKey).putFile(Uri.parse(selectedImage))
@@ -164,11 +169,25 @@ class AddBillViewModel : ViewModel() {
         return taskCompletionSource.task
     }
 
-    fun saveTheBillForOne(selectedImage: String, billName: String, time: Date): Task<Boolean> {
+    fun saveTheBillForOne(selectedImage: String, billName: String, price : String, time: Date): Task<Boolean> {
         val taskCompletionSource = TaskCompletionSource<Boolean>()
         val refOfBills = database.getReference("Bills")
 
         billKey = refOfBills.push().key.toString()
+        setWhoWillPay(
+            BillInfo(
+                "${mainUserInfo.name} ${mainUserInfo.surname}",
+                _groupName,
+                0,
+                auth.currentUser?.email.toString(),
+                price.toDouble(),
+                price.toDouble(),
+                billName,
+                "",
+                snapKey,
+                time
+            )
+        )
         setWhoWillPay(
             BillInfo(
                 "",

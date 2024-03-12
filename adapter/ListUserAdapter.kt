@@ -89,7 +89,7 @@ class ListUserAdapter(
         if (mailAndPicHashMap.isEmpty()) {
             Toast.makeText(
                 context,
-                "Bir sorunla karşılaşıldı, lütfen daha sonra tekrar deneyin",
+                R.string.try_later,
                 Toast.LENGTH_SHORT
             ).show()
             return

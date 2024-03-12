@@ -108,25 +108,25 @@ class SearchAdapter(
         friendRequestRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 var _status = 0
-                if (snapshot.exists()) {
-                    for (snap in snapshot.children) {
-                        val temp = snap.getValue(Friend::class.java)
-                        val receiver = temp?.whoGetFriendRequest
-                        val sender = temp?.whoSentFriendRequest
-                        val status = temp?.status
+                if (!snapshot.exists())
+                    return
 
-                        if (!((sender == user.mail && mainUserMail == receiver) || (receiver == user.mail && mainUserMail == sender)))
-                            continue
+                for (snap in snapshot.children) {
+                    val temp = snap.getValue(Friend::class.java)
+                    val receiver = temp?.whoGetFriendRequest
+                    val sender = temp?.whoSentFriendRequest
+                    val status = temp?.status
 
-                        if (status == 1) {
-                            _status = 1
-                            break
-                        }
+                    if (!((sender == user.mail && mainUserMail == receiver) || (receiver == user.mail && mainUserMail == sender)))
+                        continue
 
-                        if (status == 0)
-                            _status = -1
-
+                    if (status == 1) {
+                        _status = 1
+                        break
                     }
+
+                    if (status == 0)
+                        _status = -1
                 }
                 taskCompletionSource.setResult(_status)
             }

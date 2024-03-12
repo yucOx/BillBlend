@@ -58,9 +58,9 @@ class SearchFragment : Fragment() {
         val queriedUsersList = searchViewModel.getQueryList()
         val photoAndMails = searchViewModel.getPhotoAndMails()
 
-        if (queriedUsersList.size == 0){
+        if (queriedUsersList.size == 0) {
             queriedUsersList.add(User("Bu isimde veya\nmailde biri bulunamadı."))
-            photoAndMails.add(PhotoAndMail(null,""))
+            photoAndMails.add(PhotoAndMail(null, ""))
         }
         if (::adapter.isInitialized) {
             adapter.notifyDataSetChanged()

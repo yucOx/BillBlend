@@ -27,15 +27,16 @@ class BillViewModel : ViewModel() {
         val taskCompletionSource = TaskCompletionSource<Boolean>()
         ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    for (snap in snapshot.children) {
-                        if (!snap.exists())
-                            continue
-                        for (rSnap in snap.children) {
-                            val temp = rSnap.getValue(BillInfo::class.java)
-                            if (temp?.billname == _billName && temp?.groupName == _groupName && temp.snapKeyOfGroup == _snapKey)
-                                billDetails.add(temp!!)
-                        }
+                if (!snapshot.exists())
+                    return
+
+                for (snap in snapshot.children) {
+                    if (!snap.exists())
+                        continue
+                    for (rSnap in snap.children) {
+                        val temp = rSnap.getValue(BillInfo::class.java)
+                        if (temp?.billname == _billName && temp?.groupName == _groupName && temp.snapKeyOfGroup == _snapKey)
+                            billDetails.add(temp!!)
                     }
                 }
                 taskCompletionSource.setResult(true)
@@ -76,7 +77,7 @@ class BillViewModel : ViewModel() {
                                 if (_photoLocation.isNotEmpty()) {
                                     val photoDeleteTask = storage.getReference(_photoLocation)
                                         .delete()
-                                            deleteTasks.add(photoDeleteTask)
+                                    deleteTasks.add(photoDeleteTask)
                                 }
                             }
                         }
@@ -86,7 +87,7 @@ class BillViewModel : ViewModel() {
                     .addOnSuccessListener {
                         taskCompletionSource.setResult(true)
                     }
-                    .addOnFailureListener{
+                    .addOnFailureListener {
                         taskCompletionSource.setResult(false)
                     }
             }
@@ -98,7 +99,7 @@ class BillViewModel : ViewModel() {
         return taskCompletionSource.task
     }
 
-    fun uploadPhoto(photo : Uri) : Task<Boolean>{
+    fun uploadPhoto(photo: Uri): Task<Boolean> {
         val taskCompletionSource = TaskCompletionSource<Boolean>()
         storage.getReference(_photoLocation)
             .putFile(photo)

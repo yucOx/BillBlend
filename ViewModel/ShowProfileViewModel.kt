@@ -51,6 +51,9 @@ class ShowProfileViewModel : ViewModel() {
                             _status = 1
                             checker = 1
                         }
+
+                        if(status == 0)
+                            checker = 1
                     }
                 }
                 if (checker == 0) {

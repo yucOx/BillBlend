@@ -55,7 +55,6 @@ class AddBillActivity : AppCompatActivity() {
 
     private lateinit var groupViewModel: AddBillViewModel
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = AddBillActivityBinding.inflate(layoutInflater)
@@ -86,8 +85,8 @@ class AddBillActivity : AppCompatActivity() {
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 if (result.resultCode == AppCompatActivity.RESULT_OK) {
                     val data: Intent? = result.data
-                    var selectedImageUri = data?.data
-                    var smallBillPhoto = findViewById<ImageView>(R.id.smallBillPhoto)
+                    val selectedImageUri = data?.data
+                    val smallBillPhoto = findViewById<ImageView>(R.id.smallBillPhoto)
                     smallBillPhoto.setImageURI(selectedImageUri)
                     getSelectedImage = selectedImageUri.toString()
                 } else {
@@ -314,10 +313,10 @@ class AddBillActivity : AppCompatActivity() {
 
                     if (usersInfo.size == 1) {
                         CoroutineScope(Dispatchers.Main).launch {
-                            val rootView = findViewById<View>(android.R.id.content)
                             if (!groupViewModel.saveTheBillForOne(
                                     getSelectedImage.toString(),
                                     binding.billNameEt.text.toString(),
+                                    binding.priceEt.text.toString(),
                                     calendar.time
                                 ).await()
                             ) {

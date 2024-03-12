@@ -33,7 +33,6 @@ class CreateGroup : AppCompatActivity() {
     private lateinit var adapter7: ArrayAdapter<String>
     private lateinit var adapter8: ArrayAdapter<String>
     lateinit var mAdView: AdView
-    private var isThatRepeat = HashSet<String>()
     private lateinit var binding: CreateGroupBinding
     private lateinit var createGroupViewModel: CreateGroupViewModel
 
@@ -54,7 +53,6 @@ class CreateGroup : AppCompatActivity() {
                 return@launch
             initSelectUserAdapters()
         }
-
 
         binding.saveBtn.setOnClickListener {
             val groupName = binding.selectGroupname.text.toString()
@@ -82,7 +80,7 @@ class CreateGroup : AppCompatActivity() {
                 if (createGroupViewModel.saveCreatedData().await())
                     Toast.makeText(this@CreateGroup, "Başarıyla kaydedildi.", Toast.LENGTH_LONG)
                         .show()
-                val intent = Intent(this@CreateGroup,MainActivity::class.java)
+                val intent = Intent(this@CreateGroup, MainActivity::class.java)
                 startActivity(intent)
                 finish()
             }

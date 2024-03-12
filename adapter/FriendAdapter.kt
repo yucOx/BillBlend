@@ -111,6 +111,7 @@ class FriendAdapter(
                 }
 
             }
+
             override fun onCancelled(error: DatabaseError) {
             }
         })

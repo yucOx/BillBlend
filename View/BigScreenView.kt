@@ -28,22 +28,28 @@ class BigScreenView : AppCompatActivity() {
 
     private fun info() {
         val rootView = findViewById<View>(android.R.id.content)
-        Snackbar.make(rootView,"Geri dönmek için tıklayın, döndürmek için basılı tutun",Snackbar.LENGTH_INDEFINITE)
-            .setAction("Tamam"){}
+        Snackbar.make(
+            rootView,
+            "Geri dönmek için tıklayın, döndürmek için basılı tutun",
+            Snackbar.LENGTH_INDEFINITE
+        )
+            .setAction("Tamam") {}
             .show()
     }
 
     private fun goToBack() {
         val bigPhotoIv = findViewById<ImageView>(R.id.bigPhotoIv)
-        bigPhotoIv.setOnLongClickListener(object : View.OnLongClickListener{
+        bigPhotoIv.setOnLongClickListener(object : View.OnLongClickListener {
             override fun onLongClick(p0: View?): Boolean {
                 when (bigPhotoIv.rotation) {
                     0f -> {
                         bigPhotoIv.rotation += 90f
                     }
+
                     90f -> {
                         bigPhotoIv.rotation += 180f
                     }
+
                     else -> {
                         bigPhotoIv.rotation = 0f
                     }
@@ -55,9 +61,9 @@ class BigScreenView : AppCompatActivity() {
 
     private fun setPhoto(photo: String?) {
         val bigPhotoIv = findViewById<ImageView>(R.id.bigPhotoIv)
-        if(!photo.isNullOrEmpty()){
+        if (!photo.isNullOrEmpty()) {
             Glide.with(this).load(Uri.parse(photo)).centerInside().into(bigPhotoIv)
-        }else{
+        } else {
             Glide.with(this).load(R.drawable.nouploadedphoto).centerInside().into(bigPhotoIv)
         }
     }

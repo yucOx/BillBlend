@@ -27,8 +27,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 class MainActivity : AppCompatActivity() {
-    lateinit var mAdView: AdView
-    val auth = FirebaseAuth.getInstance()
+    private lateinit var mAdView: AdView
+    private val auth = FirebaseAuth.getInstance()
     private lateinit var listGroupAdapter: ListGroupAdapter
     private lateinit var mainViewModel: MainViewModel
 
