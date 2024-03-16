@@ -32,9 +32,6 @@ import kotlinx.coroutines.tasks.await
 import java.util.Calendar
 
 class AddBillActivity : AppCompatActivity() {
-    private var mInterstitialAd: InterstitialAd? = null
-    private final var TAG = "MainActivity"
-
     private lateinit var binding: AddBillActivityBinding
     private val auth = FirebaseAuth.getInstance()
     private var specialpriceBorderCounter = 1
@@ -52,7 +49,6 @@ class AddBillActivity : AppCompatActivity() {
     private var user6WhoWillPay: String? = ""
     private var selectedItem6: Any? = null
     private val checkIsNameRepeat = mutableListOf<String>()
-
     private lateinit var groupViewModel: AddBillViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,7 +71,6 @@ class AddBillActivity : AppCompatActivity() {
             if (!groupViewModel.fetchGroupUsers().await()) return@launch
             if (!groupViewModel.fetchUsersInfo().await()) return@launch
             initSelectAdapters()
-
         }
 
         val calendar = Calendar.getInstance()
@@ -128,8 +123,14 @@ class AddBillActivity : AppCompatActivity() {
                     val groupUsers = groupViewModel.getGroupUsers()
                     val usersInfo = groupViewModel.getUsersInfo()
 
-                    if (isBillPriceEmpty() == 0)
+                    if (groupViewModel.isBillPriceEmpty(
+                            binding.priceEt.text.toString()
+                    ) == 0){
+                        Toast.makeText(
+                            this@AddBillActivity, R.string.fill_empty_areas, Toast.LENGTH_SHORT
+                        ).show()
                         return@checkBillName
+                    }
 
                     howmuch = binding.priceEt.text.toString().toDouble()
                     var totalPrice = 0.0
@@ -142,19 +143,20 @@ class AddBillActivity : AppCompatActivity() {
                             }
                         }
                         if (!cleanName.isNullOrEmpty()) {
+                            val billInfo = BillInfo(
+                                cleanName,
+                                groupName,
+                                0,
+                                auth.currentUser?.email,
+                                price1,
+                                howmuch,
+                                binding.billNameEt.text.toString(),
+                                "",
+                                snapKeyOfGroup,
+                                calendar.time
+                            )
                             groupViewModel.setWhoWillPay(
-                                BillInfo(
-                                    cleanName,
-                                    groupName,
-                                    0,
-                                    auth.currentUser?.email,
-                                    price1,
-                                    howmuch,
-                                    binding.billNameEt.text.toString(),
-                                    "",
-                                    snapKeyOfGroup,
-                                    calendar.time
-                                )
+                                billInfo
                             )
 
                         }
@@ -169,20 +171,20 @@ class AddBillActivity : AppCompatActivity() {
                             }
                         }
                         if (!cleanName.isNullOrEmpty()) {
+                            val billInfo = BillInfo(
+                                cleanName,
+                                groupName,
+                                0,
+                                auth.currentUser?.email,
+                                price2,
+                                howmuch,
+                                binding.billNameEt.text.toString(),
+                                "",
+                                snapKeyOfGroup,
+                                calendar.time
+                            )
                             groupViewModel.setWhoWillPay(
-                                BillInfo(
-                                    cleanName,
-                                    groupName,
-                                    0,
-                                    auth.currentUser?.email,
-                                    price2,
-                                    howmuch,
-                                    binding.billNameEt.text.toString(),
-                                    "",
-                                    snapKeyOfGroup,
-                                    calendar.time
-
-                                )
+                                billInfo
                             )
                         }
                         groupViewModel.incWhoWillPaySeperate()
@@ -196,19 +198,20 @@ class AddBillActivity : AppCompatActivity() {
                             }
                         }
                         if (!cleanName.isNullOrEmpty()) {
+                            val billInfo = BillInfo(
+                                cleanName,
+                                groupName,
+                                0,
+                                auth.currentUser?.email,
+                                price3,
+                                howmuch,
+                                binding.billNameEt.text.toString(),
+                                "",
+                                snapKeyOfGroup,
+                                calendar.time
+                            )
                             groupViewModel.setWhoWillPay(
-                                BillInfo(
-                                    cleanName,
-                                    groupName,
-                                    0,
-                                    auth.currentUser?.email,
-                                    price3,
-                                    howmuch,
-                                    binding.billNameEt.text.toString(),
-                                    "",
-                                    snapKeyOfGroup,
-                                    calendar.time
-                                )
+                                billInfo
                             )
                         }
                         groupViewModel.incWhoWillPaySeperate()
@@ -223,19 +226,20 @@ class AddBillActivity : AppCompatActivity() {
                             }
                         }
                         if (!cleanName.isNullOrEmpty()) {
+                            val billInfo =  BillInfo(
+                                cleanName,
+                                groupName,
+                                0,
+                                auth.currentUser?.email,
+                                price4,
+                                howmuch,
+                                binding.billNameEt.text.toString(),
+                                "",
+                                snapKeyOfGroup,
+                                calendar.time
+                            )
                             groupViewModel.setWhoWillPay(
-                                BillInfo(
-                                    cleanName,
-                                    groupName,
-                                    0,
-                                    auth.currentUser?.email,
-                                    price4,
-                                    howmuch,
-                                    binding.billNameEt.text.toString(),
-                                    "",
-                                    snapKeyOfGroup,
-                                    calendar.time
-                                )
+                               billInfo
                             )
                         }
                         groupViewModel.incWhoWillPaySeperate()
@@ -249,20 +253,20 @@ class AddBillActivity : AppCompatActivity() {
                             }
                         }
                         if (!cleanName.isNullOrEmpty()) {
-                            groupViewModel.setWhoWillPay(
-                                BillInfo(
-                                    cleanName,
-                                    groupName,
-                                    0,
-                                    auth.currentUser?.email,
-                                    price5,
-                                    howmuch,
-                                    binding.billNameEt.text.toString(),
-                                    "",
-                                    snapKeyOfGroup,
-                                    calendar.time
-                                )
+                            val billInfo = BillInfo(
+                                cleanName,
+                                groupName,
+                                0,
+                                auth.currentUser?.email,
+                                price5,
+                                howmuch,
+                                binding.billNameEt.text.toString(),
+                                "",
+                                snapKeyOfGroup,
+                                calendar.time
                             )
+
+                            groupViewModel.setWhoWillPay(billInfo)
                         }
                         groupViewModel.incWhoWillPaySeperate()
 
@@ -276,26 +280,29 @@ class AddBillActivity : AppCompatActivity() {
                             }
                         }
                         if (!cleanName.isNullOrEmpty()) {
-                            groupViewModel.setWhoWillPay(
-                                BillInfo(
-                                    cleanName,
-                                    groupName,
-                                    0,
-                                    auth.currentUser?.email,
-                                    price6,
-                                    howmuch,
-                                    binding.billNameEt.text.toString(),
-                                    "",
-                                    snapKeyOfGroup,
-                                    calendar.time
-                                )
+                            val billInfo = BillInfo(
+                                cleanName,
+                                groupName,
+                                0,
+                                auth.currentUser?.email,
+                                price6,
+                                howmuch,
+                                binding.billNameEt.text.toString(),
+                                "",
+                                snapKeyOfGroup,
+                                calendar.time
                             )
+
+                            groupViewModel.setWhoWillPay(billInfo)
                         }
                         groupViewModel.incWhoWillPaySeperate()
                         totalPrice = price6 + totalPrice
                     }
 
-                    if (checkEmptyAreas() == 1) {
+                    if (groupViewModel.checkEmptyAreas(
+                            binding.billNameEt.text.toString(),
+                            binding.priceEt.text.toString()
+                            ) == 1) {
                         Toast.makeText(
                             this@AddBillActivity,
                             getString(R.string.fill_empty_areas),
@@ -304,7 +311,7 @@ class AddBillActivity : AppCompatActivity() {
                         return@checkBillName
                     }
 
-                    if (isPriceBiggerThanO() == 0) {
+                    if (groupViewModel.isPriceValid(binding.priceEt.text.toString().toInt()) == 0) {
                         Toast.makeText(
                             this@AddBillActivity, R.string.MustBeBigger, Toast.LENGTH_SHORT
                         ).show()
@@ -356,19 +363,21 @@ class AddBillActivity : AppCompatActivity() {
                         if (temp in getNamesFromData) {
                             continue
                         } else {
+                            val billInfo = BillInfo(
+                                temp,
+                                groupName,
+                                0,
+                                auth.currentUser?.email,
+                                willHowMuchPay,
+                                howmuch,
+                                binding.billNameEt.text.toString(),
+                                "",
+                                snapKeyOfGroup,
+                                calendar.time
+                            )
+
                             groupViewModel.setWhoWillPay(
-                                BillInfo(
-                                    temp,
-                                    groupName,
-                                    0,
-                                    auth.currentUser?.email,
-                                    willHowMuchPay,
-                                    howmuch,
-                                    binding.billNameEt.text.toString(),
-                                    "",
-                                    snapKeyOfGroup,
-                                    calendar.time
-                                )
+                                billInfo
                             )
                         }
                     }
@@ -376,19 +385,20 @@ class AddBillActivity : AppCompatActivity() {
                         if (a in getNamesFromwhoHowMuchWillPay) {
                             continue
                         } else {
+                            val billInfo = BillInfo(
+                                a,
+                                groupName,
+                                0,
+                                auth.currentUser?.email,
+                                willHowMuchPay,
+                                howmuch,
+                                binding.billNameEt.text.toString(),
+                                "",
+                                snapKeyOfGroup,
+                                calendar.time
+                            )
                             groupViewModel.setWhoWillPay(
-                                BillInfo(
-                                    a,
-                                    groupName,
-                                    0,
-                                    auth.currentUser?.email,
-                                    willHowMuchPay,
-                                    howmuch,
-                                    binding.billNameEt.text.toString(),
-                                    "",
-                                    snapKeyOfGroup,
-                                    calendar.time
-                                )
+                                billInfo
                             )
                         }
                     }
@@ -420,32 +430,6 @@ class AddBillActivity : AppCompatActivity() {
         binding.backToGroupbtn.setOnClickListener {
             finish()
         }
-    }
-
-    private fun isPriceBiggerThanO(): Int {
-        if (binding.priceEt.text.toString().toInt() < 0) {
-            return 0
-        }
-        return 1
-    }
-
-    private fun checkEmptyAreas(): Int {
-        if (binding.billNameEt.text.toString().isBlank() || binding.priceEt.text.toString()
-                .isBlank()
-        ) {
-            return 1
-        }
-        return 0
-    }
-
-    private fun isBillPriceEmpty(): Int {
-        if (binding.priceEt.text.toString().isBlank()) {
-            Toast.makeText(
-                this@AddBillActivity, R.string.fill_empty_areas, Toast.LENGTH_SHORT
-            ).show()
-            return 0
-        }
-        return 1
     }
 
     private fun selectSpecialPriceUsers() {
@@ -593,17 +577,23 @@ class AddBillActivity : AppCompatActivity() {
     private fun addSpecialPriceMore() {
         binding.addmoreSpecialPriceBtn.setOnClickListener {
             specialpriceBorderCounter++
-            if (specialpriceBorderCounter == 2) {
-                binding.cake2.visibility = View.VISIBLE
-            } else if (specialpriceBorderCounter == 3) {
-                binding.cake3.visibility = View.VISIBLE
-            } else if (specialpriceBorderCounter == 4) {
-                binding.partofSpecialLinear2.visibility = View.VISIBLE
-                binding.cake4.visibility = View.VISIBLE
-            } else if (specialpriceBorderCounter == 5) {
-                binding.cake5.visibility = View.VISIBLE
-            } else if (specialpriceBorderCounter == 6) {
-                binding.cake6.visibility = View.VISIBLE
+            when (specialpriceBorderCounter) {
+                2 -> {
+                    binding.cake2.visibility = View.VISIBLE
+                }
+                3 -> {
+                    binding.cake3.visibility = View.VISIBLE
+                }
+                4 -> {
+                    binding.partofSpecialLinear2.visibility = View.VISIBLE
+                    binding.cake4.visibility = View.VISIBLE
+                }
+                5 -> {
+                    binding.cake5.visibility = View.VISIBLE
+                }
+                6 -> {
+                    binding.cake6.visibility = View.VISIBLE
+                }
             }
         }
     }
@@ -636,43 +626,4 @@ class AddBillActivity : AppCompatActivity() {
         binding.selectSpecialPriceUser6.setAdapter(adapter6)
     }
 
-
-    private fun loadAds(groupName: String) {
-        var adRequest = AdRequest.Builder().build()
-        InterstitialAd.load(this,
-            "ca-app-pub-5841174734258930/8173377178",
-            adRequest,
-            object : InterstitialAdLoadCallback() {
-                override fun onAdFailedToLoad(adError: LoadAdError) {
-                    adError?.toString()?.let { Log.d(TAG, it) }
-                    var mainscreen = findViewById<ConstraintLayout>(R.id.bigAddbillfragmentConst)
-                    mInterstitialAd = null
-                }
-
-                override fun onAdLoaded(interstitialAd: InterstitialAd) {
-                    println("Ad Loaded")
-                    mInterstitialAd = interstitialAd
-                    showAds(groupName)
-                }
-            })
-    }
-
-    private fun showAds(groupName: String) {
-        if (mInterstitialAd != null) {
-            mInterstitialAd?.show(this)
-            mInterstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
-                override fun onAdDismissedFullScreenContent() {
-                    println("Ad Dismissed")
-                    mInterstitialAd = null
-                }
-
-                override fun onAdShowedFullScreenContent() {
-                    println("Ad Showed")
-                    mInterstitialAd = null
-                }
-            }
-        } else {
-            println("The interstitial ad wasn't ready yet.")
-        }
-    }
 }

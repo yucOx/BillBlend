@@ -62,7 +62,7 @@ class DetailsOfGroupActivity : AppCompatActivity() {
                     .show()
                 return@launch
             }
-            if (!detailsOfGroupViewModel.fetchMembersDetail().await()) {
+            if (!detailsOfGroupViewModel.fetchUsersInfo().await()) {
                 Snackbar.make(
                     rootView, getString(R.string.try_again_later), Snackbar.LENGTH_INDEFINITE
                 )
@@ -104,7 +104,7 @@ class DetailsOfGroupActivity : AppCompatActivity() {
                             ).show()
                             return@launch
                         }
-                        if (detailsOfGroupViewModel.divideAndConquer().await())
+                        if (detailsOfGroupViewModel.divideAndConquerToBills().await())
                             finish()
                     }
 

@@ -106,7 +106,7 @@ class BillDetailsActivity : AppCompatActivity() {
             builder.setTitle(getString(R.string.sure_to_delete))
                 .setNegativeButton("Evet") { dialog, which ->
                     CoroutineScope(Dispatchers.Main).launch {
-                        if (billViewModel.deleteBills().await()) {
+                        if (billViewModel.deleteToBill().await()) {
                             Toast.makeText(
                                 this@BillDetailsActivity,
                                 getString(R.string.bill_deleted),

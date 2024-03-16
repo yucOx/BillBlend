@@ -49,7 +49,7 @@ class CreateGroup : AppCompatActivity() {
         CoroutineScope(Dispatchers.Main).launch {
             if (!createGroupViewModel.fetchFriendsMail().await())
                 return@launch
-            if (!createGroupViewModel.fetchUsersInfo().await())
+            if (!createGroupViewModel.fetchUsersInfoToCreateGroup().await())
                 return@launch
             initSelectUserAdapters()
         }
@@ -61,9 +61,9 @@ class CreateGroup : AppCompatActivity() {
                 return@setOnClickListener
             var createResult = false
             if (selectedUsers.size > 0)
-                createResult = createGroupViewModel.createGroup(groupName, selectedUsers)
+                createResult = createGroupViewModel.handleGroup(groupName, selectedUsers)
             if (selectedUsers.size == 0)
-                createResult = createGroupViewModel.createEmptyGroup(groupName)
+                createResult = createGroupViewModel.handleGroupForSingle(groupName)
             if (!createResult)
                 return@setOnClickListener
 
@@ -77,7 +77,7 @@ class CreateGroup : AppCompatActivity() {
                     ).show()
                     return@launch
                 }
-                if (createGroupViewModel.saveCreatedData().await())
+                if (createGroupViewModel.saveGroup().await())
                     Toast.makeText(this@CreateGroup, "Başarıyla kaydedildi.", Toast.LENGTH_LONG)
                         .show()
                 val intent = Intent(this@CreateGroup, MainActivity::class.java)

@@ -2,144 +2,69 @@ package com.yucox.splitwise.ViewModel
 
 import androidx.lifecycle.ViewModel
 import com.R.R.model.Group
+import com.R.R.model.GroupRepository
 import com.R.R.model.User
+import com.R.R.model.UserRepository
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.TaskCompletionSource
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.database.ktx.getValue
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
 
 class MainViewModel : ViewModel() {
     private val database = FirebaseDatabase.getInstance()
-    private val mainUser = User()
-    private val keyAndNameMap = hashMapOf<String, String>()
-    private val groupList = ArrayList<Group>()
-    private val groupNames = HashSet<String>()
+    private val _keyAndNameMap = hashMapOf<String, String>()
+    private val _groupList = ArrayList<Group>()
+    private val _groupNames = HashSet<String>()
 
+    private val userRepository: UserRepository = UserRepository()
+    private val groupRepository: GroupRepository = GroupRepository()
 
     fun getMainUser(): User {
-        return mainUser
+        return userRepository.getUser()
     }
 
     fun fetchMainUserProfile(mail: String) {
-        val storage = Firebase.storage.getReference(mail)
-
-        storage.downloadUrl.addOnSuccessListener { uri ->
-            mainUser.pfpUri = uri.toString()
-        }
-        val userListRef = database.getReference("UsersData")
-        userListRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    for (snap in snapshot.children) {
-                        val temp = snap.getValue<User>()
-                        if (temp?.mail == mail) {
-                            mainUser.name = temp.name
-                            mainUser.surname = temp.surname
-                            mainUser.mail = temp.mail
-                            break
-                        }
-                    }
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-            }
-        })
+        userRepository.fetchMainUserProfile(
+            mail,
+            database
+        )
     }
 
     fun fetchGroups(mainUserMail: String): Task<Boolean> {
-        val groupRef = database.getReference("Groups")
-        val taskCompletionSource = TaskCompletionSource<Boolean>()
-
-        groupRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    for (snap in snapshot.children) {
-                        if (!snap.exists())
-                            continue
-                        for (realSnap in snap.children) {
-                            val temp = realSnap.getValue(Group::class.java)
-                            if (mainUserMail == temp?.email) {
-                                groupList.add(temp)
-                                groupNames.add(temp.groupName.toString())
-                                keyAndNameMap.put(
-                                    temp?.groupName!!,
-                                    temp.snapKeyOfGroup!!
-                                )
-                                if (snap.key !in keyAndNameMap.values)
-                                    continue
-
-                                for (rsnap in snap.children) {
-                                    groupList.add(rsnap.getValue<Group>()!!)
-                                }
-                            }
-                        }
-
-                    }
-                }
-                taskCompletionSource.setResult(true)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                taskCompletionSource.setResult(false)
-            }
-        })
-        return taskCompletionSource.task
+        return groupRepository.fetchGroups(
+            database,
+            mainUserMail,
+            _groupList,
+            _groupNames,
+            _keyAndNameMap
+        )
     }
 
     fun reFetchGroups(mainUserMail: String): Task<Boolean> {
-        val groupRef = database.getReference("Groups")
-        val taskCompletionSource = TaskCompletionSource<Boolean>()
-        val tempGroupNames = mutableListOf<String>()
-
-        groupRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    for (snap in snapshot.children) {
-                        if (!snap.exists())
-                            continue
-                        for (realSnap in snap.children) {
-                            val temp = realSnap.getValue(Group::class.java)
-                            if (mainUserMail != temp?.email)
-                                continue
-
-                            tempGroupNames.add(temp.groupName.toString())
-                        }
-                    }
-                }
-                if (tempGroupNames.size != groupNames.size)
-                    taskCompletionSource.setResult(true)
-                else
-                    taskCompletionSource.setResult(false)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                taskCompletionSource.setResult(false)
-            }
-        })
-        return taskCompletionSource.task
+       return groupRepository.reFetchGroups(
+            _groupNames,
+            mainUserMail,
+            database
+            )
     }
 
     fun getGroupList(): ArrayList<Group> {
-        return groupList
+        return _groupList
     }
 
     fun getGroupNames(): HashSet<String> {
-        return groupNames
+        return _groupNames
     }
 
     fun getKeyAndNameMap(): HashMap<String, String> {
-        return keyAndNameMap
+        return _keyAndNameMap
     }
 
     fun resetVariables() {
-        groupList.clear()
-        groupNames.clear()
-        keyAndNameMap.clear()
+        _groupList.clear()
+        _groupNames.clear()
+        _keyAndNameMap.clear()
     }
 }

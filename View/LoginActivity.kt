@@ -10,6 +10,7 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import com.R.R.model.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.yucox.splitwise.R
 import com.yucox.splitwise.ViewModel.AccountViewModel
